@@ -1,6 +1,6 @@
 # Box Pusher
 
-Sokoban-style puzzle for Android Chrome: push boxes until every star has a box on it. 27 stages, easiest first
+Sokoban-style puzzle for Android Chrome: push boxes until every star has a box on it. 30 stages, easiest first
 (sorted by number of boxes, then by minimum moves). Some stages have spare boxes.
 
 ## Play
