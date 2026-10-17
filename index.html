@@ -192,6 +192,18 @@ const LEVELS = [
 "__________"
 ],
 [
+"__#####___",
+"_#     #__",
+"_# ##  #__",
+"_#   # #__",
+"_# $ # #__",
+"_##    #__",
+"__##$##___",
+"___#@#____",
+"___#.#____",
+"___###____"
+],
+[
 "______###_",
 "_____#   #",
 "__##_# # #",
@@ -202,6 +214,18 @@ const LEVELS = [
 "_#    #  #",
 "_# #     #",
 "__#_#####_"
+],
+[
+"_###______",
+"_#.#______",
+"_#@#______",
+"##$####___",
+"#     #___",
+"##    #___",
+"## #  #___",
+"####  #___",
+"# $   #___",
+"#     #___"
 ],
 [
 "########",
@@ -217,18 +241,6 @@ const LEVELS = [
 "# @ $ . #",
 "#   #   #",
 "#########"
-],
-[
-"__#####___",
-"_#     #__",
-"_# ##  #__",
-"_#   # #__",
-"_# $ # #__",
-"_##    #__",
-"__##$##___",
-"___#@#____",
-"___#.#____",
-"___###____"
 ],
 [
 "__________",
@@ -255,18 +267,6 @@ const LEVELS = [
 "__________"
 ],
 [
-"_###______",
-"_#.#______",
-"_#@#______",
-"##$####___",
-"#     #___",
-"##    #___",
-"## #  #___",
-"####  #___",
-"# $   #___",
-"#     #___"
-],
-[
 "__________",
 "__________",
 "__######__",
@@ -290,18 +290,6 @@ const LEVELS = [
 "___#$. #___",
 "___#   #___",
 "___#####___"
-],
-[
-"______####",
-"_____# . .",
-"_____#    ",
-"___###   #",
-"_##  # # #",
-"# #  # $ #",
-"#    ##  #",
-"# @$     #",
-"_#####  #_",
-"______##__"
 ],
 [
 "_#######_",
@@ -347,6 +335,15 @@ const LEVELS = [
 "____###____"
 ],
 [
+"#########",
+"#  .    #",
+"#  $ #  #",
+"#. $@$ .#",
+"#    $  #",
+"#  .    #",
+"#########"
+],
+[
 "__________",
 "__________",
 "_____###__",
@@ -371,6 +368,18 @@ const LEVELS = [
 "__________"
 ],
 [
+"______####",
+"_____# . .",
+"_____#    ",
+"___###   #",
+"_##  # # #",
+"# #  # $ #",
+"#    ##  #",
+"# @$     #",
+"_#####  #_",
+"______##__"
+],
+[
 "##########",
 "#   #    #",
 "# $ # .  #",
@@ -380,27 +389,6 @@ const LEVELS = [
 "##########"
 ],
 [
-"##########",
-"#  ...   #",
-"#   ##   #",
-"#        #",
-"#    #####",
-"##      #_",
-"_### $  #_",
-"_#   $$ #_",
-"_#  @ # #_",
-"_########_"
-],
-[
-"#########",
-"#  .    #",
-"#  $ #  #",
-"#. $@$ .#",
-"#    $  #",
-"#  .    #",
-"#########"
-],
-[
 "########",
 "#. #   #",
 "#  $ # #",
@@ -408,6 +396,18 @@ const LEVELS = [
 "#  $ # #",
 "#. #. .#",
 "########"
+],
+[
+"_#######__",
+"#       #_",
+"#  .$.  #_",
+"#  # #  #_",
+"#  $@$  #_",
+"#  $ $  #_",
+"#  # #  #_",
+"#  .$.  #_",
+"#       #_",
+"_#######__"
 ],
 [
 "____###____",
@@ -420,6 +420,18 @@ const LEVELS = [
 "_#@$ #   #_",
 "_# .###  #_",
 "_####_####_"
+],
+[
+"##########",
+"#  ...   #",
+"#   ##   #",
+"#        #",
+"#    #####",
+"##      #_",
+"_### $  #_",
+"_#   $$ #_",
+"_#  @ # #_",
+"_########_"
 ],
 [
 "##########",
@@ -453,21 +465,9 @@ const LEVELS = [
 "#  .#  # #",
 "#  # #   #",
 "##########"
-],
-[
-"_#######__",
-"#       #_",
-"#  .$.  #_",
-"#  # #  #_",
-"#  $@$  #_",
-"#  $ $  #_",
-"#  # #  #_",
-"#  .$.  #_",
-"#       #_",
-"_#######__"
 ]
 ];
-const STAGE_NAMES = ["Bowl", "Ring", "Hut", "Corridor", "Ledge", "Spiral", "Twins", "Split", "Flask", "Tunnel", "Alley", "Shaft", "Gap", "Plus", "Maze", "Chamber", "Gate", "Circle", "Heart", "Pocket", "Cave", "Hall", "Warehouse", "Diamond", "Crossroads", "Star", "Quarry", "Catacomb", "Labyrinth", "Cross Room"];
+const STAGE_NAMES = ["Bowl", "Ring", "Hut", "Corridor", "Ledge", "Flask", "Spiral", "Shaft", "Twins", "Split", "Tunnel", "Alley", "Gap", "Plus", "Chamber", "Gate", "Circle", "Heart", "Diamond", "Pocket", "Cave", "Maze", "Hall", "Crossroads", "Cross Room", "Star", "Warehouse", "Quarry", "Catacomb", "Labyrinth"];
 
 const SOLUTIONS = [
 "uLUrrrURd",
@@ -475,31 +475,31 @@ const SOLUTIONS = [
 "URdddLDrrrDRuRUl",
 "URdLDrrrrDRRUlDLu",
 "llDLLUrrrrrURdLDrURd",
+"uuRRUUUULLLLDDRRdddd",
 "DRRUlDLuuLUrrrrrLUUURRDDdd",
+"dddRRDDDDLLLUrrDRuuuuRUllDLuuu",
 "LdrLLDrrUr",
 "RrrDRuLLLUULdLDrrrr",
-"uuRRUUUULLLLDDRRdddd",
 "llllRRRDRRRUlllllULdRDl",
 "lDLuLLDLLUrrrrDRRUlllRRUULdRDl",
-"dddRRDDDDLLLUrrDRuuuuRUllDLuuu",
 "RUULllULddRDlUURRRRDDLuRUlllULd",
 "LLLDDDLLuuuuLUrDRuuRUULLDdddLDrURdd",
-"URRDRRRURUUULLDDrDDLLLULLDrrrrDRuuRuuuLUURRDlDLLDDrDRuuuuDLLUURrDDLu",
 "RUULddLuLUrDDdLDrUr",
 "RRUULllRRRDDDLLLLUUuRRddlDr",
 "UURURURURRdRDlRRddRDlDLDllDLuuRUl",
 "DDDDLLLLLuLUrrrULULdLDrDrrUrrrLLdddd",
+"rrDllUllRuDd",
 "llULdRRRRUULdRDlUldLLUrrDRRUULdRDllULd",
 "uuRUlllDrURddddUUULLLLUURdLDrrrddUUURddd",
+"URRDRRRURUUULLDDrDDLLLULLDrrrrDRuuRuuuLUURRDlDLLDDrDRuuuuDLLUURrDDLu",
 "RurrrDRuLLLLLLUURdLDrrrrURdRRUlDLLLLLUURdLDrrr",
-"UUrLDDRuLUURRRDDllDLuuuuLUUURRRDDLlDDDDRRulDLuuuLuuLUrrrrDDLlDDDRRRUllDLuuLuuLUrDDrrrURRUllDRRDllllDLuu",
-"rrDllUllRuDd",
 "lULddRrUrrLdUUllDLuRRRURRDdd",
+"llDDDRrUUlULddLDrUURRrrUUULlDDrDRuuRUl",
 "DRuuuuDRRuDRRDDLullRRuuLuuDrrrLLLLllDRDdd",
+"UUrLDDRuLUURRRDDllDLuuuuLUUURRRDDLlDDDDRRulDLuuuLuuLUrrrrDDLlDDDRRRUllDLuuLuuLUrDDrrrURRUllDRRDllllDLuu",
 "RRuDLLurUrLDDRuRuuLUrDRuuDDLDDLLUrLlUULUURRRRrDDDRDDlluuLUrDDDlDLuLLuuuuDDDRrrDRuuRuuDDLLUrDRu",
 "RUUUULLDDLLLDDRRuRUUUUULLLLLdddddrLUURRDRrDDLLuuRRDRuuuuRUllDRDRRDDDllULLLDDRRuDLLULLUURrDRrDRuuuu",
-"dRRRUUULLLLLLDDDRdRrURRRDRDDLLULuLUrrLDDRDRRUULuuRUULLDrULLLdddUUULLLDDDDDrURrURRRDRDDLLULuLLLULUUrrURdddrrLDDRDRRUULuuDLLLUULLLDDDRRrUUUURRRRdl",
-"llDDDRrUUlULddLDrUURRrrUUULlDDrDRuuRUl"
+"dRRRUUULLLLLLDDDRdRrURRRDRDDLLULuLUrrLDDRDRRUULuuRUULLDrULLLdddUUULLLDDDDDrURrURRRDRDDLLULuLLLULUUrrURdddrrLDDRDRRUULuuDLLLUULLLDDDRRrUUUURRRRdl"
 ];
 
 const cv = document.getElementById('c'); let ctx = cv.getContext('2d');
