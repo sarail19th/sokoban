@@ -11,7 +11,7 @@ per-stage best moves, installable PWA.
   independent engine, writes/checks `SOLUTIONS`; `tools/par-cache.json` caches proven answers (keyed by layout)
 - `tools/make-icons.js` — renders the PNG icons (no dependencies)
 - `tools/sprite-editor.html` — standalone editor for the player's look (see Features)
-- `tools/tile-editor.html` — standalone pixel editor for the floor / wall / box / box-on-star / star art (see Features)
+- `tools/pixel-editor.html` — standalone pixel editor for the character (all 16 frames) and the tiles (see Features)
 
 ## Rules for changes
 - The game stays ONE self-contained `index.html` (no build step, no external assets, no libraries).
@@ -58,15 +58,24 @@ per-stage best moves, installable PWA.
   It embeds a COPY of `drawPlayer()`; after changing the function in `index.html`, paste the new copy into the editor
   (replace its `function drawPlayer` block). `node tools/solve.js` fails if the two drift.
   Adding a style option = add a branch in `drawPlayer()` + the value in the editor's `OPTIONS` (and default/preset
-  colours if it needs a new `PAL` key + `DEFAULT`/`LABELS` there). The game currently uses the "Sakura" look
-  (the editor's Reset still goes back to the original blue character).
-- **Tile art / tile editor**: tiles are drawn from `const SPRITES` in index.html (6 sprites: floorA, floorB, wall, box,
-  boxOn, star; square, `n` = 32 or 64 px; rows use `.` = transparent and 0-9a-zA-Z = palette index into `p`).
-  `T = SPRITES.n` is the canvas tile size, and the player (always drawn on a 32 px grid) is scaled by `T/32`.
-  `tools/tile-editor.html` edits them: pencil / eraser / fill / picker, mirror, flips, undo/redo, 32<->64 conversion,
-  PNG import (so art can be drawn in Piskel etc.), looks (Treasure chest, Cherry, Stone wall, Grass floor, Original).
-  "Copy" gives the whole `const SPRITES = {...};` block to paste over the one in index.html. The editor holds its own
-  copy of the original art (`originals()`); `node tools/solve.js` validates the SPRITES block (size, rows, palette).
+  colours if it needs a new `PAL` key + `DEFAULT`/`LABELS` there). The game's default character is the "Sakura" preset
+  (`CHAR_PRESETS`); the style editor's Reset still goes back to the original blue one.
+- **Start screen / setup** (`#setup`, JS block after `const $`): shown on first visit and via "Character & tiles" in the stage
+  list. Step 1 pick a character (5 presets + Custom), step 2 pick a tile set (Classic, Treasure, Cherry, Stone & grass +
+  Custom), then Play. Choices persist in `bp_setup`; pasted custom code in `bp_custom` (raw text, re-parsed on load).
+  "Custom art" box accepts the code copied from the editors: `const PAL/LOOK` lines (styled character),
+  `const PLAYER = {...}` (pixel character, 16 frames `idle|walkA|walkB|push` x `d|u|l|r`) or `const SPRITES = {...}` (tiles:
+  floorA floorB wall box boxOn star). Sizes are 32 or 64 px; `T` (tile size) comes from the tile set and the player is scaled.
+  Rows use `.` = transparent and 0-9a-zA-Z = index into the sprite's palette `p`.
+- **Shared code**: the tile generator (`originals()`, `LOOKS`: Treasure chest / Cherry / Stone wall / Grass floor),
+  `CHAR_PRESETS` and `drawPlayer()` live in index.html between `// @@TILEGEN-BEGIN/END` and `// @@CHARS-BEGIN/END`.
+  `tools/pixel-editor.html` holds copies; when they change, copy the marked blocks (and the drawPlayer function)
+  over into the editor. `node tools/solve.js` fails if the copies drift (also for `tools/sprite-editor.html`'s drawPlayer).
+- **Pixel editor** (`tools/pixel-editor.html`, open the file in any browser): "Character" or "Tiles"; 32x32 or 64x64 (converts);
+  pencil / eraser / fill / picker, mirror, flips, undo/redo, PNG import. Character mode starts by baking a preset look (or
+  PAL/LOOK lines pasted from the style editor) into 16 editable frames, so face and clothes can be painted; "same edit on all
+  4 poses of this direction" repeats strokes across Stand/Walk A/Walk B/Push. Tiles mode has the tile looks. "Copy" gives the
+  code to paste on the start screen.
 - **PWA**: `sw.js` precaches the files, stale-while-revalidate; registered only on http(s).
 
 ## Verify after every change

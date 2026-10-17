@@ -47,7 +47,22 @@ canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100
 #pickSum{padding:0 16px 8px;font-size:13px;font-weight:600;opacity:.85}
 .pr b{font-weight:800}
 .pr .ok{color:#1c8a3a;font-weight:800}
-#pickClose{margin:10px 16px 14px;background:var(--btn2);color:#fff;border:0;border-radius:10px;padding:10px;font-size:15px;font-weight:700}
+#pickSetup{margin:10px 8px 14px 16px;background:#3a566e;color:#fff;border:0;border-radius:10px;padding:10px;font-size:15px;font-weight:700}
+#pickBox{position:relative}
+#pickClose{margin:10px 16px 14px 8px;background:var(--btn2);color:#fff;border:0;border-radius:10px;padding:10px;font-size:15px;font-weight:700}
+#setup{position:fixed;inset:0;background:var(--bg);display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:16px}
+#setupBox{background:var(--panel);border:4px solid #fff7b0;border-radius:16px;color:var(--ink);width:100%;max-width:440px;padding:8px 16px 18px}
+#setupBox h1{margin:8px 0 0;text-align:center} #setupBox h3{margin:14px 0 6px;font-size:14px}
+.cards{display:flex;flex-wrap:wrap;gap:8px}
+.card{background:var(--panel2);border:3px solid transparent;border-radius:10px;padding:6px;display:flex;flex-direction:column;align-items:center;gap:4px;font:700 12px system-ui,sans-serif;color:var(--ink)}
+.card.cur{border-color:#e0a21b;background:#fff7b0}
+.card canvas{width:64px;height:64px;image-rendering:pixelated;border:0;border-radius:6px;max-width:none;max-height:none}
+#tileRow .card canvas{width:112px;height:28px}
+#setupBox details{margin-top:12px;font-size:13px} #setupBox summary{font-weight:700;cursor:pointer}
+#setupBox textarea{width:100%;font:11px ui-monospace,monospace;border-radius:8px;border:1px solid var(--panel2);padding:6px;user-select:text;-webkit-user-select:text}
+#setupBox details button,#setupGo{background:var(--btn2);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-size:15px;font-weight:700;margin-top:6px}
+#setupGo{display:block;width:100%;margin-top:16px;font-size:18px;padding:14px}
+#codeMsg{min-height:18px;margin-top:4px;font-weight:600}
 #toast{position:fixed;left:50%;bottom:210px;transform:translateX(-50%);background:rgba(10,30,40,.9);color:#fff;padding:8px 16px;border-radius:20px;font-weight:700;font-size:14px;display:none;pointer-events:none;white-space:nowrap}
 #msg{position:fixed;inset:0;background:rgba(10,30,40,.75);display:none;align-items:center;justify-content:center}
 #msg div{background:var(--panel);padding:24px 30px;border-radius:16px;text-align:center;color:var(--ink);border:4px solid #fff7b0}
@@ -84,7 +99,18 @@ canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100
   </div>
 </div>
 <div id="toast"></div>
-<div id="pick"><div id="pickBox"><h2>Stages</h2><div id="pickSum"></div><div id="pickHead"><span>#</span><span>Shape</span><span>Boxes</span><span>Par</span><span>Best</span><span>Stars</span></div><div id="list"></div><button id="pickClose">Close</button></div></div>
+<div id="setup"><div id="setupBox">
+  <h1>Box Pusher</h1>
+  <h3>1 · Choose your character</h3><div class="cards" id="charRow"></div>
+  <h3>2 · Choose a tile set</h3><div class="cards" id="tileRow"></div>
+  <details><summary>Custom art</summary>
+    <p>Draw your own in the editors, copy the code and paste it here.<br><a href="tools/sprite-editor.html" target="_blank">Character style editor</a> · <a href="tools/pixel-editor.html" target="_blank">Pixel editor (faces, clothes, tiles, 32/64 px)</a></p>
+    <textarea id="code" rows="4" spellcheck="false" placeholder="const PAL = ...   or   const PLAYER = ...   or   const SPRITES = ..."></textarea>
+    <button id="applyCode">Use this code</button><div id="codeMsg"></div>
+  </details>
+  <button id="setupGo">Play</button>
+</div></div>
+<div id="pick"><div id="pickBox"><h2>Stages</h2><div id="pickSum"></div><div id="pickHead"><span>#</span><span>Shape</span><span>Boxes</span><span>Par</span><span>Best</span><span>Stars</span></div><div id="list"></div><button id="pickSetup">Character &amp; tiles</button><button id="pickClose">Close</button></div></div>
 <div id="msg"><div><h2>Stage clear!</h2><div id="ws"></div><p id="mm"></p><button id="go">Next stage</button></div></div>
 
 <script>
@@ -425,31 +451,167 @@ const SOLUTIONS = [
 "llDDDRrUUlULddLDrUURRrrUUULlDDrDRuuRUl"
 ];
 
-const SPRITES = {"n":32,
-"floorA":{"p":["#2f6f7a","#4a939c"],"r":["00000000000000000000000000000000","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111"]},
-"floorB":{"p":["#2f6f7a","#4f9aa3"],"r":["00000000000000000000000000000000","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111","01111111111111111111111111111111"]},
-"wall":{"p":["#a9694a","#c4825c","#8a4f35"],"r":["00000000000000000000000000000000","00000000000000000000000000000000","00111111111111111111111111111100","00111111111111111111111111111100","00112211111111111111111111221100","00111221111111111111111112211100","00111122111111111111111122111100","00111112211111111111111221111100","00111111221111111111112211111100","00111111122111111111122111111100","00111111112211111111221111111100","00111111111221111112211111111100","00111111111122111122111111111100","00111111111112211221111111111100","00111111111111222211111111111100","00111111111111122111111111111100","00111111111111222211111111111100","00111111111112211221111111111100","00111111111122111122111111111100","00111111111221111112211111111100","00111111112211111111221111111100","00111111122111111111122111111100","00111111221111111111112211111100","00111112211111111111111221111100","00111122111111111111111122111100","00111221111111111111111112211100","00112211111111111111111111221100","00122111111111111111111111122100","00111111111111111111111111111100","00111111111111111111111111111100","00000000000000000000000000000000","00000000000000000000000000000000"]},
-"box":{"p":["#8a6246","#a98062","#d9d2c3"],"r":["................................","................................","................................","................................","....000000000000000000000000....","....000000000000000000000000....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001112222222222111111100....","....001112222222222111111100....","....001112222222222111111100....","....001112222222222111111100....","....001112222222222111111100....","....001112222222222111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....000000000000000000000000....","....000000000000000000000000....","................................","................................","................................","................................"]},
-"boxOn":{"p":["#e0b45a","#f5d584","#d9d2c3"],"r":["................................","................................","................................","................................","....000000000000000000000000....","....000000000000000000000000....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001112222222222111111100....","....001112222222222111111100....","....001112222222222111111100....","....001112222222222111111100....","....001112222222222111111100....","....001112222222222111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....001111111111111111111100....","....000000000000000000000000....","....000000000000000000000000....","................................","................................","................................","................................"]},
-"star":{"p":["#ffe98a"],"r":["................................","................................","................................","................................","................................","................................","................................","................................","...............00...............","...............00...............","..............0000..............","..............0000..............",".............000000.............","............00000000............","..........000000000000..........","........0000000000000000........","........0000000000000000........","..........000000000000..........","............00000000............",".............000000.............","..............0000..............","..............0000..............","...............00...............","...............00...............","................................","................................","................................","................................","................................","................................","................................","................................"]}};
-// Tile art: SPRITES is edited with tools/tile-editor.html. Rows use '.' = transparent, other chars index the palette p.
-const T = SPRITES.n;                         // tile size in canvas pixels (32 or 64); the player sprite is scaled to fit
-const SPR = {};
-(function buildSprites(){
-  const CH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  for (const k of ['floorA','floorB','wall','box','boxOn','star']){
-    const sp = SPRITES[k], c = document.createElement('canvas'); c.width = c.height = T;
-    const g = c.getContext('2d'), img = g.createImageData(T,T);
-    for (let y=0;y<T;y++) for (let x=0;x<T;x++){
-      const ch = sp.r[y][x]; if (ch==='.') continue;
-      const v = parseInt(sp.p[CH.indexOf(ch)].slice(1),16), i = (y*T+x)*4;
-      img.data[i]=v>>16&255; img.data[i+1]=v>>8&255; img.data[i+2]=v&255; img.data[i+3]=255;
-    }
-    g.putImageData(img,0,0); SPR[k] = c;
-  }
-})();
-const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const cv = document.getElementById('c'); let ctx = cv.getContext('2d');
 const $ = id => document.getElementById(id);
+// @@TILEGEN-BEGIN
+const KEYS = ['floorA','floorB','wall','box','boxOn','star'];
+const NAMES = {floorA:'Floor (light)', floorB:'Floor (dark)', wall:'Wall', box:'Box', boxOn:'Box on star', star:'Star'};
+const mk = n => Array.from({length:n}, () => Array(n).fill(null));
+const rect = (g,x,y,w,h,c) => { for (let j=y;j<y+h;j++) for (let i=x;i<x+w;i++) if (j>=0&&j<g.length&&i>=0&&i<g.length) g[j][i]=c; };
+const disc = (g,cx,cy,r,c) => { for (let j=0;j<g.length;j++) for (let i=0;i<g.length;i++) if ((i+.5-cx)**2+(j+.5-cy)**2<=r*r) g[j][i]=c; };
+const poly = (g,pts,c) => { for (let j=0;j<g.length;j++) for (let i=0;i<g.length;i++) { let ins=false; const x=i+.5,y=j+.5;
+  for (let a=0,b=pts.length-1;a<pts.length;b=a++){ const [xa,ya]=pts[a],[xb,yb]=pts[b]; if ((ya>y)!==(yb>y) && x<(xb-xa)*(y-ya)/(yb-ya)+xa) ins=!ins; } if (ins) g[j][i]=c; } };
+const dot = (g,x,y,c) => { if (g[y]&&x>=0&&x<g.length) g[y][x]=c; };
+function originals(){
+  const o = {};
+  const floor = (c1) => { const g=mk(32); rect(g,0,0,32,32,c1); rect(g,0,0,32,1,'#2f6f7a'); rect(g,0,0,1,32,'#2f6f7a'); return g; };
+  o.floorA = floor('#4a939c'); o.floorB = floor('#4f9aa3');
+  const w = mk(32); rect(w,0,0,32,32,'#a9694a'); rect(w,2,2,28,28,'#c4825c');
+  for (let i=4;i<=27;i++){ dot(w,i,i,'#8a4f35'); dot(w,i+1,i,'#8a4f35'); dot(w,31-i,i,'#8a4f35'); dot(w,30-i,i,'#8a4f35'); }
+  o.wall = w;
+  const star = mk(32); poly(star,[[16,7],[19,13],[25,16],[19,19],[16,25],[13,19],[7,16],[13,13]],'#ffe98a'); o.star = star;
+  const box = (c1,c2) => { const g=mk(32); rect(g,4,4,24,24,c1); rect(g,6,6,20,20,c2); rect(g,9,10,10,6,'#d9d2c3'); return g; };
+  o.box = box('#8a6246','#a98062'); o.boxOn = box('#e0b45a','#f5d584');
+  return o;
+}
+const LOOKS = {
+  'Treasure chest': () => { const mkc = on => { const g=mk(32), wood=on?'#c98a3c':'#8a5a2b', lid=on?'#e0a24e':'#a8703a', edge='#3b2410', gold='#f2c14e';
+      rect(g,3,11,26,18,edge); rect(g,4,12,24,16,wood); for (let y=17;y<28;y+=5) rect(g,4,y,24,1,'#6e4521');
+      rect(g,3,5,26,8,edge); rect(g,5,4,22,2,edge); rect(g,4,6,24,6,lid); rect(g,6,5,20,1,lid);
+      rect(g,7,5,3,24,gold); rect(g,22,5,3,24,gold); rect(g,13,12,6,8,edge); rect(g,14,13,4,6,gold); rect(g,15,15,2,3,edge);
+      if (on){ dot(g,2,3,'#fff6c0'); dot(g,29,4,'#fff6c0'); dot(g,1,20,'#fff6c0'); dot(g,30,22,'#fff6c0'); } return g; };
+    return { box: mkc(false), boxOn: mkc(true) }; },
+  'Cherry': () => { const mkc = on => { const g=mk(32);
+      if (on) disc(g,16,18,14,'#ffe98a');
+      for (let i=0;i<10;i++){ dot(g,16-Math.floor(i*0.7),5+i,'#5a3a1e'); dot(g,16+Math.floor(i*0.8),5+i,'#5a3a1e'); }
+      poly(g,[[16,5],[24,3],[27,7],[20,8]],'#3f9a3b'); disc(g,9,21,6.5,'#7a0f1c'); disc(g,22,22,6.5,'#7a0f1c'); disc(g,9,21,5.4,'#d62d3a'); disc(g,22,22,5.4,'#d62d3a');
+      rect(g,7,18,2,2,'#ff9aa5'); rect(g,20,19,2,2,'#ff9aa5'); return g; };
+    return { box: mkc(false), boxOn: mkc(true) }; },
+  'Stone wall': () => { const g=mk(32); rect(g,0,0,32,32,'#8e949c'); for (const y of [0,8,16,24]) rect(g,0,y,32,1,'#50565e');
+    [[0,4],[1,0],[0,4],[1,0]].forEach(([_,off],r)=>{ for (let x=(r%2?6:0);x<32;x+=12) rect(g,x,r*8,1,8,'#50565e'); });
+    for (let r=0;r<4;r++) for (let x=(r%2?7:1);x<32;x+=12) rect(g,x,r*8+1,10,2,'#aab0b8'); return { wall: g }; },
+  'Grass floor': () => { const mkf = c => { const g=mk(32); rect(g,0,0,32,32,c); [[5,6],[19,3],[26,17],[10,22],[3,28],[22,27]].forEach(([x,y])=>{ rect(g,x,y,1,3,'#3f7d3a'); rect(g,x+2,y+1,1,2,'#3f7d3a'); }); return g; };
+    return { floorA: mkf('#78b85a'), floorB: mkf('#6fae52') }; },
+  'Original': () => originals(),
+};
+// @@TILEGEN-END
+// @@CHARS-BEGIN
+const CHAR_PRESETS = [
+  {id:'classic', name:'Classic', PAL:{hair:'#1f9bd0', hairBack:'#1884b3', skin:'#ffd9c2', shirt:'#2a72b8', collar:'#ffffff', shoe:'#222233', eye:'#222222', sweat:'#9fe3ff', dust:'#e8fbff', hat:'#d63a3a', hatBand:'#a82a2a', accent:'#f2b01e'}, LOOK:{hair:'short', hat:'none', outfit:'plain', extra:'none'}},
+  {id:'ruby', name:'Ruby', PAL:{hair:'#d63a3a', hairBack:'#b02f2f', skin:'#ffd9c2', shirt:'#f2b01e', collar:'#fff4c9', shoe:'#3b2a20', eye:'#222222', sweat:'#9fe3ff', dust:'#f3e3d3', hat:'#2b2b2b', hatBand:'#111111', accent:'#e8e8e8'}, LOOK:{hair:'spiky', hat:'cap', outfit:'stripes', extra:'none'}},
+  {id:'forest', name:'Forest', PAL:{hair:'#2e9b5a', hairBack:'#26804b', skin:'#f1c9a5', shirt:'#6b4f2d', collar:'#e8e1c0', shoe:'#2a2a2a', eye:'#1a1a1a', sweat:'#9fe3ff', dust:'#e2efe0', hat:'#3f7d3a', hatBand:'#2c5a29', accent:'#c9a35a'}, LOOK:{hair:'short', hat:'beanie', outfit:'overalls', extra:'backpack'}},
+  {id:'sakura', name:'Sakura', PAL:{hair:'#f07cb4', hairBack:'#c8639a', skin:'#ffe0d0', shirt:'#8a63d2', collar:'#ffffff', shoe:'#4a2b5c', eye:'#3a1f3a', sweat:'#b8e8ff', dust:'#fbe6f1', hat:'#ffd35c', hatBand:'#e0a21b', accent:'#ffd35c'}, LOOK:{hair:'long', hat:'crown', outfit:'plain', extra:'scarf'}},
+  {id:'shadow', name:'Shadow', PAL:{hair:'#33343d', hairBack:'#2b2c34', skin:'#8d5524', shirt:'#c0392b', collar:'#eeeeee', shoe:'#111111', eye:'#ffffff', sweat:'#9fe3ff', dust:'#cfcfcf', hat:'#444444', hatBand:'#222222', accent:'#f2b01e'}, LOOK:{hair:'bald', hat:'headband', outfit:'plain', extra:'glasses'}},
+];
+// @@CHARS-END
+// ---- setup: choose a character and a tile set (presets, or code pasted from the editors in tools/) ----
+let T = 32;                                   // tile size in canvas pixels (32 or 64); the player is scaled to fit
+const SPR = {};                               // tile canvases: floorA floorB wall box boxOn star
+const TILE_SETS = [
+  {id:'classic', name:'Classic', make:()=>withLooks([])},
+  {id:'treasure', name:'Treasure', make:()=>withLooks(['Treasure chest','Stone wall','Grass floor'])},
+  {id:'cherry', name:'Cherry', make:()=>withLooks(['Cherry'])},
+  {id:'meadow', name:'Stone & grass', make:()=>withLooks(['Stone wall','Grass floor'])},
+];
+function withLooks(names){ const S = originals(); for (const nm of names) Object.assign(S, LOOKS[nm]()); return {n:32, S}; }
+function gridCanvas(g){
+  const m = g.length, c = document.createElement('canvas'); c.width = c.height = m; const x = c.getContext('2d');
+  for (let j=0;j<m;j++) for (let i=0;i<m;i++) if (g[j][i]){ x.fillStyle = g[j][i]; x.fillRect(i,j,1,1); }
+  return c;
+}
+function setTiles(set){ T = set.n; for (const k of KEYS) SPR[k] = gridCanvas(set.S[k]); }
+let PLAYER_PX = null;                         // pixel-art character: {f:{'idle_d':canvas,...}} or null for the styled one
+function setPlayerPixels(set){ PLAYER_PX = set ? {f:Object.fromEntries(Object.entries(set.S).map(([k,g])=>[k,gridCanvas(g)]))} : null; }
+function paintPlayer(X,Y){
+  if (PLAYER_PX){
+    const dk = facing.x<0 ? 'l' : facing.x>0 ? 'r' : facing.y<0 ? 'u' : 'd', pk = pose==='walk' ? (step?'walkB':'walkA') : pose;
+    ctx.imageSmoothingEnabled = false; ctx.drawImage(PLAYER_PX.f[pk+'_'+dk], X, Y, T, T);
+  } else { ctx.save(); ctx.translate(X,Y); ctx.scale(T/32, T/32); drawPlayer(0,0); ctx.restore(); }
+}
+// pasted code from the editors: "const SPRITES = {...}" (tiles), "const PLAYER = {...}" (pixel character) or PAL/LOOK lines
+const PLAYER_KEYS = ['idle','walkA','walkB','push'].flatMap(p => ['d','u','l','r'].map(d => p+'_'+d));
+function parseSet(text, name, keys){
+  const o = JSON.parse(text.trim().replace(new RegExp('^const\\s+'+name+'\\s*=\\s*'), '').replace(/;\s*$/, ''));
+  const CH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', m = o.n, S = {};
+  if (m !== 32 && m !== 64) throw new Error('size must be 32 or 64');
+  for (const k of keys){
+    const s = o[k]; if (!s || s.r.length !== m) throw new Error('missing or bad sprite '+k);
+    S[k] = s.r.map(row => { if (row.length !== m) throw new Error('bad row in '+k); return [...row].map(ch => ch==='.' ? null : s.p[CH.indexOf(ch)]); });
+  }
+  return {n:m, S};
+}
+function parseLook(text){
+  const pal = {}, look = {};
+  for (const [,k,v] of text.matchAll(/(\w+)\s*:\s*'(#[0-9a-fA-F]{6})'/g)) if (k in CHAR_PRESETS[0].PAL) pal[k] = v.toLowerCase();
+  for (const [,k,v] of text.matchAll(/(\w+)\s*:\s*'([a-z]+)'/g)) if (k in CHAR_PRESETS[0].LOOK) look[k] = v;
+  if (!Object.keys(pal).length) throw new Error('no colours found');
+  return {PAL:Object.assign({}, CHAR_PRESETS[0].PAL, pal), LOOK:Object.assign({}, CHAR_PRESETS[0].LOOK, look)};
+}
+let sel = {char:'sakura', tiles:'classic', seen:false}, custom = {char:null, tiles:null};   // custom = pasted text
+function readCustom(kind){
+  const t = custom[kind]; if (!t) return null;
+  try {
+    if (kind==='tiles') return {kind, set:parseSet(t,'SPRITES',KEYS)};
+    return /const\s+PLAYER/.test(t) ? {kind:'px', set:parseSet(t,'PLAYER',PLAYER_KEYS)} : Object.assign({kind:'look'}, parseLook(t));
+  } catch(e){ return null; }
+}
+function saveSetup(){ try { localStorage.setItem('bp_setup', JSON.stringify(sel)); localStorage.setItem('bp_custom', JSON.stringify(custom)); } catch(e){} }
+function applyChar(){
+  const cc = sel.char==='custom' ? readCustom('char') : null, p = cc || CHAR_PRESETS.find(c=>c.id===sel.char) || CHAR_PRESETS[3];
+  if (cc && cc.kind==='px'){ setPlayerPixels(cc.set); return; }
+  setPlayerPixels(null); Object.assign(PAL, p.PAL); Object.assign(LOOK, p.LOOK);
+}
+function applyTiles(){
+  const ct = sel.tiles==='custom' ? readCustom('tiles') : null;
+  setTiles(ct ? ct.set : (TILE_SETS.find(t=>t.id===sel.tiles) || TILE_SETS[0]).make());
+}
+function initSetup(){
+  try { Object.assign(sel, JSON.parse(localStorage.getItem('bp_setup')||'null')||{}); Object.assign(custom, JSON.parse(localStorage.getItem('bp_custom')||'null')||{}); } catch(e){}
+  if (sel.char==='custom' && !readCustom('char')) sel.char = 'sakura';
+  if (sel.tiles==='custom' && !readCustom('tiles')) sel.tiles = 'classic';
+  applyChar(); applyTiles();
+}
+// --- setup screen ---
+function previewCanvas(w, h){ const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+function drawCharPreview(c, entry){
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.fillStyle = '#4a939c'; g.fillRect(0,0,c.width,c.height);
+  if (entry.kind==='px'){ const f = gridCanvas(entry.set.S.idle_d); g.drawImage(f, 0, 0, c.width, c.height); return; }
+  const keepPal = Object.assign({}, PAL), keepLook = Object.assign({}, LOOK), keepCtx = ctx, kf = facing, kp = pose, ks = step, kPx = PLAYER_PX;
+  PLAYER_PX = null; Object.assign(PAL, entry.PAL); Object.assign(LOOK, entry.LOOK); ctx = g; facing = {x:0,y:1}; pose = 'idle'; step = 0;
+  g.save(); g.scale(c.width/32, c.height/32); drawPlayer(0,0); g.restore();
+  ctx = keepCtx; facing = kf; pose = kp; step = ks; PLAYER_PX = kPx; Object.assign(PAL, keepPal); Object.assign(LOOK, keepLook);
+}
+function drawTilePreview(c, set){
+  const m = set.n, g = c.getContext('2d'), S = {}; for (const k of KEYS) S[k] = gridCanvas(set.S[k]);
+  g.imageSmoothingEnabled = false; g.drawImage(S.wall, 0, 0, c.width/4, c.height); g.drawImage(S.floorA, c.width/4, 0, c.width/4, c.height);
+  g.drawImage(S.floorB, c.width/2, 0, c.width/4, c.height); g.drawImage(S.box, c.width/2, 0, c.width/4, c.height);
+  g.drawImage(S.floorA, c.width*3/4, 0, c.width/4, c.height); g.drawImage(S.star, c.width*3/4, 0, c.width/4, c.height); g.drawImage(S.boxOn, c.width*3/4, 0, c.width/4, c.height);
+}
+function card(row, id, name, drawFn, cur, onPick){
+  const b = document.createElement('button'); b.className = 'card'+(cur===id?' cur':''); const c = previewCanvas(64, row.dataset.kind==='tiles' ? 16 : 64);
+  if (row.dataset.kind==='tiles'){ c.width = 128; c.height = 32; } drawFn(c); b.appendChild(c); const s = document.createElement('span'); s.textContent = name; b.appendChild(s);
+  b.onclick = ()=>{ onPick(id); renderSetup(); }; row.appendChild(b);
+}
+function renderSetup(){
+  const cr = $('charRow'), tr = $('tileRow'); cr.textContent = ''; tr.textContent = ''; cr.dataset.kind = 'char'; tr.dataset.kind = 'tiles';
+  for (const p of CHAR_PRESETS) card(cr, p.id, p.name, c=>drawCharPreview(c, p), sel.char, id=>{ sel.char = id; applyChar(); saveSetup(); draw(); });
+  const cc = readCustom('char'); if (cc) card(cr, 'custom', 'Custom', c=>drawCharPreview(c, cc), sel.char, id=>{ sel.char = id; applyChar(); saveSetup(); draw(); });
+  for (const t of TILE_SETS) card(tr, t.id, t.name, c=>drawTilePreview(c, t.make()), sel.tiles, id=>{ sel.tiles = id; applyTiles(); saveSetup(); load(lvl); });
+  const ct = readCustom('tiles'); if (ct) card(tr, 'custom', 'Custom', c=>drawTilePreview(c, ct.set), sel.tiles, id=>{ sel.tiles = id; applyTiles(); saveSetup(); load(lvl); });
+}
+function openSetup(){ renderSetup(); $('setup').style.display = 'flex'; }
+$('setupGo').onclick = ()=>{ sel.seen = true; saveSetup(); $('setup').style.display = 'none'; };
+$('pickSetup').onclick = ()=>{ $('pick').style.display = 'none'; openSetup(); };
+$('applyCode').onclick = ()=>{
+  const t = $('code').value.trim(), say = m => { $('codeMsg').textContent = m; };
+  try {
+    if (/const\s+SPRITES/.test(t)){ parseSet(t,'SPRITES',KEYS); custom.tiles = t; sel.tiles = 'custom'; applyTiles(); load(lvl); say('Custom tiles applied.'); }
+    else if (/const\s+PLAYER/.test(t)){ parseSet(t,'PLAYER',PLAYER_KEYS); custom.char = t; sel.char = 'custom'; applyChar(); draw(); say('Custom pixel character applied.'); }
+    else if (/const\s+PAL/.test(t)){ parseLook(t); custom.char = t; sel.char = 'custom'; applyChar(); draw(); say('Custom character look applied.'); }
+    else throw new Error('paste the code copied from an editor');
+    saveSetup(); renderSetup();
+  } catch(e){ say('Could not use that code: '+e.message); }
+};
 let lvl = 0, W, H, walls, targets, boxes, player, history, moves, won, hintUsed;
 let msgT = null, hintTimer = null, hintToken = 0, solving = false, toastT = null;
 let facing = {x:0,y:1}, pose = 'idle', step = 0, poseT = null;   // player sprite state (see drawPlayer)
@@ -568,8 +730,7 @@ function draw(){
     const [x,y]=b.split(',').map(Number);
     ctx.drawImage(targets.has(b) ? SPR.boxOn : SPR.box, x*T, y*T);
   }
-  // the player is drawn on a 32 px grid and scaled to the tile size
-  ctx.save(); ctx.translate(player.x*T, player.y*T); ctx.scale(T/32, T/32); drawPlayer(0,0); ctx.restore();
+  paintPlayer(player.x*T, player.y*T);
 }
 
 // Player sprite. Three poses, each facing the last move direction:
@@ -864,7 +1025,9 @@ window.addEventListener('keydown',e=>{
   const m={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];
   if (m){e.preventDefault();userMove(...m);} else if (e.key==='z') undo(); else if (e.key==='r') load(lvl); else if (e.key==='h') hint();
 });
+initSetup();
 load(lvl);
+if (!sel.seen) openSetup();
 
 // PWA: offline cache (only when served over http/https; the game also works opened as a plain file)
 try { if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(()=>{}); } catch(e){}

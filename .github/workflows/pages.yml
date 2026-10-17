@@ -39,6 +39,8 @@ jobs:
         run: |
           mkdir _site
           cp index.html manifest.webmanifest sw.js icon-192.png icon-512.png _site/
+          mkdir _site/tools
+          cp tools/sprite-editor.html tools/pixel-editor.html _site/tools/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

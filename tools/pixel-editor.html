@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Box Pusher pixel editor</title>
+<style>
+:root{--bg:#1b2a38;--panel:#243a4c;--ink:#e6f3f8;--mut:#9db8c6;--acc:#5fd0f0;--line:#35516a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,sans-serif}
+header{padding:14px 20px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:18px} header p{margin:4px 0 0;color:var(--mut)}
+h2{margin:16px 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+main{display:flex;flex-wrap:wrap;gap:16px;padding:0 20px 30px;align-items:flex-start}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:2px 14px 14px}
+#left{flex:0 0 250px} #mid{flex:0 1 560px} #right{flex:1 1 300px;min-width:260px}
+button,select{background:#1f8fc4;color:#fff;border:0;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer;margin:3px 4px 0 0;font-size:13px}
+button.alt,select{background:#3a566e} button.on{outline:2px solid var(--acc);background:#2a6e94}
+select{padding:6px 8px}
+#tabs.list button{width:100%;margin:3px 0;text-align:left;display:flex;align-items:center;gap:8px}
+#tabs.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+#tabs.grid button{margin:0;padding:3px;display:flex;flex-direction:column;align-items:center;font-size:10px;font-weight:600}
+#tabs canvas{width:28px;height:28px;image-rendering:pixelated;background:#4a939c;border-radius:4px}
+#tabs.grid canvas{width:100%;height:auto;aspect-ratio:1}
+#edit{width:100%;max-width:544px;aspect-ratio:1;image-rendering:pixelated;border-radius:6px;touch-action:none;cursor:crosshair;display:block}
+#swatches{display:flex;flex-wrap:wrap;gap:4px;max-height:130px;overflow:auto;margin-top:6px}
+.sw{width:24px;height:24px;border-radius:5px;border:2px solid transparent;padding:0;margin:0}
+.sw.sel{border-color:#fff}
+input[type=color]{width:44px;height:30px;border:1px solid var(--line);border-radius:6px;background:none;padding:0;vertical-align:middle}
+input[type=text]{width:84px;background:#162532;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 6px;font-family:ui-monospace,monospace}
+textarea{width:100%;background:#162532;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:11px/1.3 ui-monospace,monospace}
+#scene{width:100%;image-rendering:pixelated;border-radius:6px;display:block}
+.note{color:var(--mut);font-size:12px;margin:6px 0 0} #msg{color:var(--acc);min-height:18px;margin-top:4px}
+label.chk{color:var(--mut);display:inline-flex;gap:5px;align-items:center;margin:6px 8px 0 0}
+.hide{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Box Pusher · pixel editor</h1>
+  <p>Draw the <b>character</b> (every pose and direction, so you can paint the face and clothes) or the <b>tiles</b> (floor, wall, box, box on star, star), in 32×32 or 64×64. Copy the code and paste it on the game's start screen (<i>Custom art</i>). Works offline: just open this file.</p>
+</header>
+<main>
+  <section id="left">
+    <h2>What to draw</h2>
+    <select id="set"><option value="player">Character</option><option value="tiles">Tiles</option></select>
+    <h2>Frames</h2><div id="tabs"></div>
+    <h2>Size</h2>
+    <select id="size"><option value="32">32 × 32 (classic)</option><option value="64">64 × 64 (more detail)</option></select>
+    <p class="note">Changing size converts this set (nearest neighbour). The game scales everything to the tile size.</p>
+    <div id="forPlayer">
+      <h2>Start the character from…</h2>
+      <select id="base"></select><button id="bake">Bake into pixels</button>
+      <p class="note">Takes a ready-made look (or the PAL/LOOK lines from the style editor pasted below) and turns all 16 frames into editable pixels. This replaces the current frames.</p>
+      <textarea id="lookText" rows="3" spellcheck="false" placeholder="optional: paste const PAL = ...; const LOOK = ...; from the style editor"></textarea>
+    </div>
+    <div id="forTiles" class="hide">
+      <h2>Looks</h2><div id="presets"></div><p class="note">A look replaces only the sprites it covers.</p>
+    </div>
+    <h2>Import PNG</h2>
+    <input type="file" id="file" accept="image/png,image/gif,image/jpeg">
+    <p class="note">Draw elsewhere (Piskel, Aseprite, …) and load a PNG into the selected frame. Transparent pixels stay transparent.</p>
+  </section>
+  <section id="mid">
+    <h2 id="title"></h2>
+    <canvas id="edit"></canvas>
+    <div>
+      <button id="t_pencil" class="on">Pencil</button><button id="t_erase" class="alt">Eraser</button><button id="t_fill" class="alt">Fill</button><button id="t_pick" class="alt">Picker</button>
+      <button id="undo" class="alt">Undo</button><button id="redo" class="alt">Redo</button><button id="clear" class="alt">Clear</button>
+      <button id="fh" class="alt">Flip ↔</button><button id="fv" class="alt">Flip ↕</button>
+      <br><label class="chk"><input type="checkbox" id="mirror"> mirror left/right</label><label class="chk"><input type="checkbox" id="grid" checked> grid</label>
+      <label class="chk" id="linkWrap"><input type="checkbox" id="link" checked> same edit on all 4 poses of this direction</label>
+    </div>
+    <h2>Colour</h2>
+    <input type="color" id="col" value="#d63a3a"> <input type="text" id="hex" value="#d63a3a" maxlength="7" spellcheck="false">
+    <div id="swatches"></div>
+    <p class="note">Swatches are the colours already in this frame. Use the eraser for transparency. Tip for faces/clothes: leave "same edit on all poses" on and paint on the front-facing frame, then fix the others.</p>
+  </section>
+  <section id="right">
+    <h2>Preview</h2>
+    <canvas id="scene"></canvas>
+    <h2 id="outTitle">Code</h2>
+    <textarea id="out" rows="9" spellcheck="false"></textarea>
+    <button id="copy">Copy</button><button id="load" class="alt">Load from text</button><button id="reset" class="alt">Reset</button>
+    <div id="msg"></div>
+  </section>
+</main>
+<script>
+// ---------- shared with the game (kept in sync; node tools/solve.js checks this) ----------
+// @@TILEGEN-BEGIN
+const KEYS = ['floorA','floorB','wall','box','boxOn','star'];
+const NAMES = {floorA:'Floor (light)', floorB:'Floor (dark)', wall:'Wall', box:'Box', boxOn:'Box on star', star:'Star'};
+const mk = n => Array.from({length:n}, () => Array(n).fill(null));
+const rect = (g,x,y,w,h,c) => { for (let j=y;j<y+h;j++) for (let i=x;i<x+w;i++) if (j>=0&&j<g.length&&i>=0&&i<g.length) g[j][i]=c; };
+const disc = (g,cx,cy,r,c) => { for (let j=0;j<g.length;j++) for (let i=0;i<g.length;i++) if ((i+.5-cx)**2+(j+.5-cy)**2<=r*r) g[j][i]=c; };
+const poly = (g,pts,c) => { for (let j=0;j<g.length;j++) for (let i=0;i<g.length;i++) { let ins=false; const x=i+.5,y=j+.5;
+  for (let a=0,b=pts.length-1;a<pts.length;b=a++){ const [xa,ya]=pts[a],[xb,yb]=pts[b]; if ((ya>y)!==(yb>y) && x<(xb-xa)*(y-ya)/(yb-ya)+xa) ins=!ins; } if (ins) g[j][i]=c; } };
+const dot = (g,x,y,c) => { if (g[y]&&x>=0&&x<g.length) g[y][x]=c; };
+function originals(){
+  const o = {};
+  const floor = (c1) => { const g=mk(32); rect(g,0,0,32,32,c1); rect(g,0,0,32,1,'#2f6f7a'); rect(g,0,0,1,32,'#2f6f7a'); return g; };
+  o.floorA = floor('#4a939c'); o.floorB = floor('#4f9aa3');
+  const w = mk(32); rect(w,0,0,32,32,'#a9694a'); rect(w,2,2,28,28,'#c4825c');
+  for (let i=4;i<=27;i++){ dot(w,i,i,'#8a4f35'); dot(w,i+1,i,'#8a4f35'); dot(w,31-i,i,'#8a4f35'); dot(w,30-i,i,'#8a4f35'); }
+  o.wall = w;
+  const star = mk(32); poly(star,[[16,7],[19,13],[25,16],[19,19],[16,25],[13,19],[7,16],[13,13]],'#ffe98a'); o.star = star;
+  const box = (c1,c2) => { const g=mk(32); rect(g,4,4,24,24,c1); rect(g,6,6,20,20,c2); rect(g,9,10,10,6,'#d9d2c3'); return g; };
+  o.box = box('#8a6246','#a98062'); o.boxOn = box('#e0b45a','#f5d584');
+  return o;
+}
+const LOOKS = {
+  'Treasure chest': () => { const mkc = on => { const g=mk(32), wood=on?'#c98a3c':'#8a5a2b', lid=on?'#e0a24e':'#a8703a', edge='#3b2410', gold='#f2c14e';
+      rect(g,3,11,26,18,edge); rect(g,4,12,24,16,wood); for (let y=17;y<28;y+=5) rect(g,4,y,24,1,'#6e4521');
+      rect(g,3,5,26,8,edge); rect(g,5,4,22,2,edge); rect(g,4,6,24,6,lid); rect(g,6,5,20,1,lid);
+      rect(g,7,5,3,24,gold); rect(g,22,5,3,24,gold); rect(g,13,12,6,8,edge); rect(g,14,13,4,6,gold); rect(g,15,15,2,3,edge);
+      if (on){ dot(g,2,3,'#fff6c0'); dot(g,29,4,'#fff6c0'); dot(g,1,20,'#fff6c0'); dot(g,30,22,'#fff6c0'); } return g; };
+    return { box: mkc(false), boxOn: mkc(true) }; },
+  'Cherry': () => { const mkc = on => { const g=mk(32);
+      if (on) disc(g,16,18,14,'#ffe98a');
+      for (let i=0;i<10;i++){ dot(g,16-Math.floor(i*0.7),5+i,'#5a3a1e'); dot(g,16+Math.floor(i*0.8),5+i,'#5a3a1e'); }
+      poly(g,[[16,5],[24,3],[27,7],[20,8]],'#3f9a3b'); disc(g,9,21,6.5,'#7a0f1c'); disc(g,22,22,6.5,'#7a0f1c'); disc(g,9,21,5.4,'#d62d3a'); disc(g,22,22,5.4,'#d62d3a');
+      rect(g,7,18,2,2,'#ff9aa5'); rect(g,20,19,2,2,'#ff9aa5'); return g; };
+    return { box: mkc(false), boxOn: mkc(true) }; },
+  'Stone wall': () => { const g=mk(32); rect(g,0,0,32,32,'#8e949c'); for (const y of [0,8,16,24]) rect(g,0,y,32,1,'#50565e');
+    [[0,4],[1,0],[0,4],[1,0]].forEach(([_,off],r)=>{ for (let x=(r%2?6:0);x<32;x+=12) rect(g,x,r*8,1,8,'#50565e'); });
+    for (let r=0;r<4;r++) for (let x=(r%2?7:1);x<32;x+=12) rect(g,x,r*8+1,10,2,'#aab0b8'); return { wall: g }; },
+  'Grass floor': () => { const mkf = c => { const g=mk(32); rect(g,0,0,32,32,c); [[5,6],[19,3],[26,17],[10,22],[3,28],[22,27]].forEach(([x,y])=>{ rect(g,x,y,1,3,'#3f7d3a'); rect(g,x+2,y+1,1,2,'#3f7d3a'); }); return g; };
+    return { floorA: mkf('#78b85a'), floorB: mkf('#6fae52') }; },
+  'Original': () => originals(),
+};
+// @@TILEGEN-END
+// @@CHARS-BEGIN
+const CHAR_PRESETS = [
+  {id:'classic', name:'Classic', PAL:{hair:'#1f9bd0', hairBack:'#1884b3', skin:'#ffd9c2', shirt:'#2a72b8', collar:'#ffffff', shoe:'#222233', eye:'#222222', sweat:'#9fe3ff', dust:'#e8fbff', hat:'#d63a3a', hatBand:'#a82a2a', accent:'#f2b01e'}, LOOK:{hair:'short', hat:'none', outfit:'plain', extra:'none'}},
+  {id:'ruby', name:'Ruby', PAL:{hair:'#d63a3a', hairBack:'#b02f2f', skin:'#ffd9c2', shirt:'#f2b01e', collar:'#fff4c9', shoe:'#3b2a20', eye:'#222222', sweat:'#9fe3ff', dust:'#f3e3d3', hat:'#2b2b2b', hatBand:'#111111', accent:'#e8e8e8'}, LOOK:{hair:'spiky', hat:'cap', outfit:'stripes', extra:'none'}},
+  {id:'forest', name:'Forest', PAL:{hair:'#2e9b5a', hairBack:'#26804b', skin:'#f1c9a5', shirt:'#6b4f2d', collar:'#e8e1c0', shoe:'#2a2a2a', eye:'#1a1a1a', sweat:'#9fe3ff', dust:'#e2efe0', hat:'#3f7d3a', hatBand:'#2c5a29', accent:'#c9a35a'}, LOOK:{hair:'short', hat:'beanie', outfit:'overalls', extra:'backpack'}},
+  {id:'sakura', name:'Sakura', PAL:{hair:'#f07cb4', hairBack:'#c8639a', skin:'#ffe0d0', shirt:'#8a63d2', collar:'#ffffff', shoe:'#4a2b5c', eye:'#3a1f3a', sweat:'#b8e8ff', dust:'#fbe6f1', hat:'#ffd35c', hatBand:'#e0a21b', accent:'#ffd35c'}, LOOK:{hair:'long', hat:'crown', outfit:'plain', extra:'scarf'}},
+  {id:'shadow', name:'Shadow', PAL:{hair:'#33343d', hairBack:'#2b2c34', skin:'#8d5524', shirt:'#c0392b', collar:'#eeeeee', shoe:'#111111', eye:'#ffffff', sweat:'#9fe3ff', dust:'#cfcfcf', hat:'#444444', hatBand:'#222222', accent:'#f2b01e'}, LOOK:{hair:'bald', hat:'headband', outfit:'plain', extra:'glasses'}},
+];
+// @@CHARS-END
+const T = 32;
+let ctx, facing = {x:0,y:1}, pose = 'idle', step = 0;
+function px(x,y,w,h,c){ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); }
+const PAL = {}, LOOK = {};
+function drawPlayer(X,Y){
+  const HAIR=PAL.hair, SKIN=PAL.skin, SHIRT=PAL.shirt, SHOE=PAL.shoe, ACC=PAL.accent;
+  const dx=facing.x, dy=facing.y, push=pose==='push', walk=pose==='walk';
+  const bx=X+dx*(push?2:0), by=Y+dy*(push?2:0);          // body leans into the push
+  // feet (stay on the ground; wide when pushing, one lifted when walking)
+  const sp = push ? 2 : 0, lift = walk ? -2 : 0;
+  px(X+10-sp,Y+27+(step?lift:0),5,3,SHOE); px(X+17+sp,Y+27+(step?0:lift),5,3,SHOE);
+  // backpack seen from the side sits behind the body
+  if (LOOK.extra==='backpack' && dx!==0) px(bx+(dx>0?3:24),by+18,5,9,ACC);
+  // torso
+  px(bx+9,by+18,14,9,SHIRT);
+  if (dy>=0) px(bx+13,by+18,6,5,PAL.collar);              // collar (not visible from behind)
+  if (LOOK.outfit==='stripes'){ px(bx+9,by+20,14,2,ACC); px(bx+9,by+24,14,2,ACC); }
+  else if (LOOK.outfit==='overalls'){ px(bx+9,by+22,14,5,ACC); px(bx+11,by+18,2,5,ACC); px(bx+19,by+18,2,5,ACC); }
+  if (LOOK.extra==='backpack' && dy<0) px(bx+10,by+18,12,9,ACC);
+  if (LOOK.extra==='backpack' && dy>0){ px(bx+10,by+18,2,8,ACC); px(bx+20,by+18,2,8,ACC); }
+  if (LOOK.extra==='scarf'){ px(bx+9,by+17,14,3,ACC); px(bx+(dx<0?9:20),by+19,3,6,ACC); }
+  // head
+  if (LOOK.hair==='bald') px(bx+8,by+4,16,14,SKIN);
+  else {
+    px(bx+8,by+3,16,8,HAIR); px(bx+7,by+8,18,5,HAIR);
+    if (LOOK.hair==='spiky'){ px(bx+9,by+1,3,3,HAIR); px(bx+14,by,4,4,HAIR); px(bx+20,by+1,3,3,HAIR); }
+    else if (LOOK.hair==='bun') px(bx+13,by-1,6,5,HAIR);
+    else if (LOOK.hair==='long'){ px(bx+7,by+13,3,8,HAIR); px(bx+22,by+13,3,8,HAIR); }
+  }
+  if (dy<0){                                              // back of head
+    if (LOOK.hair==='bald') px(bx+10,by+10,12,8,SKIN);
+    else { const lg = LOOK.hair==='long'; px(bx+(lg?8:10),by+10,lg?16:12,lg?12:8,PAL.hairBack); }
+  } else {
+    px(bx+10,by+10,12,8,SKIN);
+    const ex = dx<0 ? [11,14] : dx>0 ? [17,20] : [13,18];
+    if (push){ px(bx+ex[0],by+14,3,1,PAL.eye); px(bx+ex[1],by+14,3,1,PAL.eye); px(bx+23,by+8,2,4,PAL.sweat); } // squint + sweat
+    else { px(bx+ex[0],by+13,2,2,PAL.eye); px(bx+ex[1],by+13,2,2,PAL.eye); }
+    if (LOOK.extra==='glasses'){
+      for (const e of ex){ px(bx+e-1,by+12,4,1,ACC); px(bx+e-1,by+15,4,1,ACC); px(bx+e-1,by+13,1,2,ACC); px(bx+e+2,by+13,1,2,ACC); }
+      if (dx===0) px(bx+ex[0]+3,by+13,ex[1]-ex[0]-3,1,ACC);
+    }
+  }
+  // hats
+  if (LOOK.hat==='cap'){
+    px(bx+8,by+1,16,7,PAL.hat); px(bx+7,by+6,18,2,PAL.hat);
+    if (dy>0) px(bx+8,by+8,16,2,PAL.hatBand); else if (dx>0) px(bx+21,by+6,8,2,PAL.hatBand); else if (dx<0) px(bx+3,by+6,8,2,PAL.hatBand);
+  } else if (LOOK.hat==='beanie'){
+    px(bx+8,by+1,16,9,PAL.hat); px(bx+7,by+8,18,3,PAL.hatBand); px(bx+14,by-1,4,3,PAL.hatBand);
+  } else if (LOOK.hat==='crown'){
+    px(bx+9,by+2,14,4,PAL.hat); px(bx+9,by,3,3,PAL.hat); px(bx+14,by-1,4,4,PAL.hat); px(bx+20,by,3,3,PAL.hat); px(bx+9,by+5,14,1,PAL.hatBand);
+  } else if (LOOK.hat==='headband') px(bx+7,by+7,18,2,PAL.hat);
+  // arms
+  if (push){
+    if (dx>0){ px(bx+22,by+19,8,4,SHIRT); px(bx+30,by+19,3,4,SKIN); px(bx+6,by+19,4,6,SHIRT); }
+    else if (dx<0){ px(bx+2,by+19,8,4,SHIRT); px(bx-1,by+19,3,4,SKIN); px(bx+22,by+19,4,6,SHIRT); }
+    else if (dy>0){ px(bx+6,by+22,4,8,SHIRT); px(bx+6,by+30,4,3,SKIN); px(bx+22,by+22,4,8,SHIRT); px(bx+22,by+30,4,3,SKIN); }
+    else { px(bx+6,by+8,4,12,SHIRT); px(bx+6,by+5,4,3,SKIN); px(bx+22,by+8,4,12,SHIRT); px(bx+22,by+5,4,3,SKIN); }
+    px(X+16-dx*14-1, Y+25-dy*12, 3, 3, PAL.dust); px(X+16-dx*11-1, Y+28-dy*9, 2, 2, PAL.dust);  // dust puff
+  } else {
+    const sw = walk ? (step?1:-1) : 0;                      // arms swing opposite to the feet
+    px(bx+6,by+19+sw,4,6,SHIRT); px(bx+22,by+19-sw,4,6,SHIRT);
+  }
+}
+// ---------- editor ----------
+const POSES = [['idle','Stand'],['walkA','Walk A'],['walkB','Walk B'],['push','Push']], DIRS = [['d','Down'],['u','Up'],['l','Left'],['r','Right']];
+const PLAYER_KEYS = POSES.flatMap(p => DIRS.map(d => p[0]+'_'+d[0])), PLAYER_NAMES = {};
+POSES.forEach(p => DIRS.forEach(d => { PLAYER_NAMES[p[0]+'_'+d[0]] = p[1]+' · '+d[1]; }));
+const $ = id => document.getElementById(id);
+const hex = (r,g,b) => '#' + [r,g,b].map(v => Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('');
+const CH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+function bake(preset, nn){
+  Object.assign(PAL, preset.PAL); Object.assign(LOOK, preset.LOOK);
+  const c = document.createElement('canvas'); c.width = c.height = nn; const g = c.getContext('2d', {willReadFrequently:true}), out = {};
+  for (const [pk] of POSES) for (const [dk] of DIRS){
+    g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,nn,nn); g.setTransform(nn/32,0,0,nn/32,0,0);
+    ctx = g; facing = {x: dk==='l'?-1:dk==='r'?1:0, y: dk==='d'?1:dk==='u'?-1:0}; pose = pk==='idle'?'idle':pk==='push'?'push':'walk'; step = pk==='walkB'?1:0;
+    drawPlayer(0,0);
+    g.setTransform(1,0,0,1,0,0); const d = g.getImageData(0,0,nn,nn).data, grid = mk(nn);
+    for (let j=0;j<nn;j++) for (let i=0;i<nn;i++){ const k=(j*nn+i)*4; if (d[k+3] >= 128) grid[j][i] = hex(d[k],d[k+1],d[k+2]); }
+    out[pk+'_'+dk] = grid;
+  }
+  return out;
+}
+const SETS = {
+  tiles:  {n:32, S:originals(), keys:KEYS, names:NAMES, cur:'box', name:'SPRITES', label:'SPRITES block for the game'},
+  player: {n:32, S:null, keys:PLAYER_KEYS, names:PLAYER_NAMES, cur:'idle_d', name:'PLAYER', label:'PLAYER code for the game'},
+};
+SETS.player.S = bake(CHAR_PRESETS.find(c => c.id === 'sakura'), 32);
+let setName = 'player', st = SETS.player, tool = 'pencil', color = '#d63a3a', undoS = [], redoS = [];
+const ed = $('edit'), ec = ed.getContext('2d');
+const snap = () => JSON.stringify({setName, n: st.n, S: st.S, cur: st.cur});
+function pushUndo(){ undoS.push(snap()); if (undoS.length > 30) undoS.shift(); redoS = []; }
+function restore(s){ const o = JSON.parse(s); setName = o.setName; st = SETS[setName]; st.n = o.n; st.S = o.S; st.cur = o.cur; sync(); }
+function scaleGrid(g, to){ const from = g.length; if (from === to) return g; const o = mk(to);
+  for (let y=0;y<to;y++) for (let x=0;x<to;x++) o[y][x] = g[Math.min(from-1, Math.floor(y*from/to))][Math.min(from-1, Math.floor(x*from/to))]; return o; }
+function toCanvas(g){ const m = g.length, c = document.createElement('canvas'); c.width = c.height = m; const x = c.getContext('2d');
+  for (let j=0;j<m;j++) for (let i=0;i<m;i++) if (g[j][i]) { x.fillStyle = g[j][i]; x.fillRect(i,j,1,1); } return c; }
+function limit(g){ const uniq = () => { const s = new Set(); g.forEach(r => r.forEach(c => c && s.add(c))); return s; };
+  if (uniq().size <= 62) return g;
+  for (const step of [8,16,24,32,48,64]){ const q = g.map(r => r.map(c => { if (!c) return c; const v = parseInt(c.slice(1),16); return hex(Math.round((v>>16&255)/step)*step, Math.round((v>>8&255)/step)*step, Math.round((v&255)/step)*step); }));
+    const s = new Set(); q.forEach(r => r.forEach(c => c && s.add(c))); if (s.size <= 62) return q; }
+  return g; }
+
+// ---------- views ----------
+function draw(){
+  const m = st.n, z = Math.floor(512 / m), g = st.S[st.cur]; ed.width = ed.height = m * z;
+  for (let j=0;j<m;j++) for (let i=0;i<m;i++){ const c = g[j][i];
+    ec.fillStyle = ((i>>2)+(j>>2))%2 ? '#6a7480' : '#59626d'; ec.fillRect(i*z,j*z,z,z);
+    if (c){ ec.fillStyle = c; ec.fillRect(i*z,j*z,z,z); } }
+  if ($('grid').checked){ ec.strokeStyle = 'rgba(0,0,0,.28)'; ec.lineWidth = 1; ec.beginPath();
+    for (let k=0;k<=m;k++){ ec.moveTo(k*z+.5,0); ec.lineTo(k*z+.5,m*z); ec.moveTo(0,k*z+.5); ec.lineTo(m*z,k*z+.5); } ec.stroke(); }
+}
+function tabs(){
+  const t = $('tabs'); t.textContent = ''; t.className = setName === 'player' ? 'grid' : 'list';
+  for (const k of st.keys){ const b = document.createElement('button'); b.className = k===st.cur ? 'on' : 'alt'; b.title = st.names[k];
+    b.appendChild(toCanvas(st.S[k])); b.append(setName === 'player' ? k.split('_')[0].replace('walk','W ').replace('idle','Idle').replace('push','Push') : st.names[k]);
+    b.onclick = () => { st.cur = k; sync(); }; t.appendChild(b); }
+  $('title').textContent = st.names[st.cur] + '  (' + st.n + '×' + st.n + ')';
+}
+function palette(){
+  const cnt = {}; for (const r of st.S[st.cur]) for (const c of r) if (c) cnt[c] = (cnt[c]||0) + 1;
+  $('swatches').textContent = '';
+  Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([c]) => { const b = document.createElement('button'); b.className = 'sw'+(c===color?' sel':''); b.style.background = c; b.title = c;
+    b.onclick = () => setColor(c); $('swatches').appendChild(b); });
+}
+function scene(){
+  const sc = $('scene'), m = st.n; const sp = {}; for (const k of st.keys) sp[k] = toCanvas(st.S[k]);
+  if (setName === 'tiles'){
+    sc.width = 8*m; sc.height = 4*m; const c = sc.getContext('2d'); c.imageSmoothingEnabled = false; const at = (k,x,y) => c.drawImage(sp[k], x*m, y*m);
+    const map = ['########','#  *$  #','# $ . $ #','########'];
+    for (let y=0;y<4;y++) for (let x=0;x<8;x++){ if (map[y][x] === '#') at('wall',x,y); else { at((x+y)%2 ? 'floorB' : 'floorA',x,y); if (map[y][x]==='.') at('star',x,y); } }
+    at('star',4,1); at('box',2,2); at('box',6,2); at('boxOn',4,2); at('box',3,1);
+  } else {
+    sc.width = 4*m; sc.height = 2*m; const c = sc.getContext('2d'); c.imageSmoothingEnabled = false; const dir = st.cur.split('_')[1];
+    for (let y=0;y<2;y++) for (let x=0;x<4;x++){ c.fillStyle = (x+y)%2 ? '#4f9aa3' : '#4a939c'; c.fillRect(x*m,y*m,m,m); }
+    DIRS.forEach(([d],i) => c.drawImage(sp['idle_'+d], i*m, 0));
+    POSES.forEach(([p],i) => c.drawImage(sp[p+'_'+dir], i*m, m));
+  }
+}
+function code(){
+  const parts = [];
+  for (const k of st.keys){ const g = limit(st.S[k]), pal = [];
+    const rows = g.map(r => r.map(c => { if (!c) return '.'; let i = pal.indexOf(c); if (i < 0) i = pal.push(c) - 1; return CH[i]; }).join(''));
+    parts.push(JSON.stringify(k) + ':' + JSON.stringify({p: pal, r: rows})); }
+  return 'const ' + st.name + ' = {"n":' + st.n + ',\n' + parts.join(',\n') + '};';
+}
+function sync(){
+  $('set').value = setName; $('size').value = st.n; $('forPlayer').className = setName === 'player' ? '' : 'hide'; $('forTiles').className = setName === 'tiles' ? '' : 'hide';
+  $('linkWrap').className = setName === 'player' ? 'chk' : 'chk hide'; $('outTitle').textContent = st.label;
+  tabs(); draw(); palette(); scene(); $('out').value = code();
+  try { localStorage.setItem('bp_pixel', JSON.stringify({tiles:{n:SETS.tiles.n,S:SETS.tiles.S}, player:{n:SETS.player.n,S:SETS.player.S}})); } catch(e){}
+}
+function setColor(c){ color = c; $('col').value = c; $('hex').value = c; palette(); }
+
+// ---------- tools ----------
+const targets = () => setName === 'player' && $('link').checked ? POSES.map(p => p[0]+'_'+st.cur.split('_')[1]) : [st.cur];
+function put(x, y, c){ if (x<0||y<0||x>=st.n||y>=st.n) return; for (const k of targets()){ st.S[k][y][x] = c; if ($('mirror').checked) st.S[k][y][st.n-1-x] = c; } }
+function line(x0,y0,x1,y1,c){ const dx=Math.abs(x1-x0), dy=Math.abs(y1-y0), sx=x0<x1?1:-1, sy=y0<y1?1:-1; let e=dx-dy;
+  for(;;){ put(x0,y0,c); if (x0===x1&&y0===y1) break; const e2=2*e; if (e2>-dy){ e-=dy; x0+=sx; } if (e2<dx){ e+=dx; y0+=sy; } } }
+function fillGrid(g,x,y,c){ const from = g[y][x]; if (from === c) return; const q = [[x,y]], n = g.length;
+  while (q.length){ const [i,j] = q.pop(); if (i<0||j<0||i>=n||j>=n||g[j][i] !== from) continue; g[j][i] = c; q.push([i+1,j],[i-1,j],[i,j+1],[i,j-1]); } }
+const where = e => { const r = ed.getBoundingClientRect(); return [Math.floor((e.clientX-r.left)/r.width*st.n), Math.floor((e.clientY-r.top)/r.height*st.n)]; };
+let last = null, down = false;
+ed.addEventListener('pointerdown', e => { const [x,y] = where(e); if (x<0||y<0||x>=st.n||y>=st.n) return;
+  if (tool === 'pick'){ const c = st.S[st.cur][y][x]; if (c) setColor(c); return; }
+  pushUndo(); down = true; last = [x,y]; ed.setPointerCapture(e.pointerId);
+  if (tool === 'fill'){ for (const k of targets()){ fillGrid(st.S[k],x,y,color); if ($('mirror').checked) fillGrid(st.S[k],st.n-1-x,y,color); } down = false; sync(); return; }
+  put(x,y, tool === 'erase' ? null : color); draw(); });
+ed.addEventListener('pointermove', e => { if (!down) return; const [x,y] = where(e); line(last[0],last[1],x,y, tool === 'erase' ? null : color); last = [x,y]; draw(); });
+['pointerup','pointercancel'].forEach(t => ed.addEventListener(t, () => { if (down){ down = false; sync(); } }));
+for (const t of ['pencil','erase','fill','pick']) $('t_'+t).onclick = () => { tool = t; ['pencil','erase','fill','pick'].forEach(k => $('t_'+k).className = k===t ? 'on' : 'alt'); };
+$('undo').onclick = () => { if (undoS.length){ redoS.push(snap()); restore(undoS.pop()); } };
+$('redo').onclick = () => { if (redoS.length){ undoS.push(snap()); restore(redoS.pop()); } };
+$('clear').onclick = () => { pushUndo(); for (const k of targets()) st.S[k] = mk(st.n); sync(); };
+$('fh').onclick = () => { pushUndo(); for (const k of targets()) st.S[k] = st.S[k].map(r => r.slice().reverse()); sync(); };
+$('fv').onclick = () => { pushUndo(); for (const k of targets()) st.S[k] = st.S[k].slice().reverse(); sync(); };
+$('grid').onchange = draw;
+$('col').oninput = () => setColor($('col').value);
+$('hex').onchange = () => { if (/^#[0-9a-f]{6}$/i.test($('hex').value.trim())) setColor($('hex').value.trim().toLowerCase()); else $('hex').value = color; };
+$('size').onchange = () => { pushUndo(); const to = +$('size').value; for (const k of st.keys) st.S[k] = scaleGrid(st.S[k], to); st.n = to; sync(); };
+$('set').onchange = () => { setName = $('set').value; st = SETS[setName]; undoS = []; redoS = []; sync(); };
+window.addEventListener('keydown', e => { if ((e.ctrlKey||e.metaKey) && e.key === 'z'){ e.preventDefault(); $('undo').click(); } });
+function say(t){ $('msg').textContent = t; setTimeout(() => { if ($('msg').textContent === t) $('msg').textContent = ''; }, 2500); }
+
+// character base
+for (const p of CHAR_PRESETS){ const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; $('base').appendChild(o); }
+$('base').value = 'sakura';
+$('bake').onclick = () => {
+  let preset = CHAR_PRESETS.find(c => c.id === $('base').value); const t = $('lookText').value.trim();
+  if (t){ const pal = {}, look = {};
+    for (const [,k,v] of t.matchAll(/(\w+)\s*:\s*'(#[0-9a-fA-F]{6})'/g)) if (k in CHAR_PRESETS[0].PAL) pal[k] = v.toLowerCase();
+    for (const [,k,v] of t.matchAll(/(\w+)\s*:\s*'([a-z]+)'/g)) if (k in CHAR_PRESETS[0].LOOK) look[k] = v;
+    if (Object.keys(pal).length) preset = {PAL:Object.assign({}, CHAR_PRESETS[0].PAL, pal), LOOK:Object.assign({}, CHAR_PRESETS[0].LOOK, look)}; }
+  pushUndo(); st.S = bake(preset, st.n); sync(); say('Baked ' + (t ? 'the pasted look' : $('base').selectedOptions[0].textContent) + ' into pixels.');
+};
+// tile looks
+for (const name of Object.keys(LOOKS)){ const b = document.createElement('button'); b.className = 'alt'; b.textContent = name;
+  b.onclick = () => { pushUndo(); const part = LOOKS[name](); for (const k of Object.keys(part)) st.S[k] = scaleGrid(part[k], st.n); sync(); say(name + ' applied'); }; $('presets').appendChild(b); }
+// import
+$('file').onchange = e => { const f = e.target.files[0]; if (!f) return; const img = new Image(), m = st.n;
+  img.onload = () => { const c = document.createElement('canvas'); c.width = c.height = m; const x = c.getContext('2d'); x.imageSmoothingEnabled = img.width > m*2; x.drawImage(img, 0, 0, m, m);
+    const d = x.getImageData(0,0,m,m).data, g = mk(m); for (let j=0;j<m;j++) for (let i=0;i<m;i++){ const k=(j*m+i)*4; if (d[k+3] >= 128) g[j][i] = hex(d[k],d[k+1],d[k+2]); }
+    pushUndo(); st.S[st.cur] = limit(g); sync(); say('Imported into ' + st.names[st.cur]); URL.revokeObjectURL(img.src); };
+  img.src = URL.createObjectURL(f); e.target.value = ''; };
+// text in/out
+$('copy').onclick = async () => { try { await navigator.clipboard.writeText($('out').value); say('Copied. Paste it on the game\'s start screen (Custom art).'); } catch(e){ $('out').select(); say('Select + Ctrl+C to copy.'); } };
+function parse(text){
+  const o = JSON.parse(text.trim().replace(new RegExp('^const\\s+' + st.name + '\\s*=\\s*'), '').replace(/;\s*$/, '')), m = o.n, S = {};
+  if (m !== 32 && m !== 64) throw new Error('size must be 32 or 64');
+  for (const k of st.keys){ const s = o[k]; if (!s || s.r.length !== m) throw new Error('bad sprite ' + k);
+    S[k] = s.r.map(row => { if (row.length !== m) throw new Error('bad row in ' + k); return [...row].map(ch => ch === '.' ? null : s.p[CH.indexOf(ch)]); }); }
+  return { n: m, S };
+}
+$('load').onclick = () => { try { const o = parse($('out').value); pushUndo(); st.n = o.n; st.S = o.S; sync(); say('Loaded.'); } catch(e){ say('Could not read that text: ' + e.message); } };
+$('reset').onclick = () => { pushUndo(); st.n = 32; st.S = setName === 'tiles' ? originals() : bake(CHAR_PRESETS.find(c => c.id === 'sakura'), 32); sync(); say('Reset.'); };
+
+try { const s = JSON.parse(localStorage.getItem('bp_pixel') || 'null');
+  if (s){ for (const k of ['tiles','player']) if (s[k] && (s[k].n === 32 || s[k].n === 64) && SETS[k].keys.every(q => s[k].S[q])){ SETS[k].n = s[k].n; SETS[k].S = s[k].S; } } } catch(e){}
+sync();
+</script>
+</body>
+</html>

@@ -82,26 +82,19 @@ if (!bad) {
     bad++;
   } else console.log('SOLUTIONS block is up to date.');
 }
-// the tile art block must be well formed (size, rows, palette indexes)
-try {
-  const SP = eval('(' + src.match(/const SPRITES = (\{[\s\S]*?\});\n/)[1] + ')'), CH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  if (SP.n !== 32 && SP.n !== 64) throw new Error('n must be 32 or 64');
-  for (const k of ['floorA', 'floorB', 'wall', 'box', 'boxOn', 'star']) {
-    const s = SP[k]; if (!s || s.r.length !== SP.n) throw new Error(k + ': wrong number of rows');
-    for (const row of s.r) {
-      if (row.length !== SP.n) throw new Error(k + ': wrong row length');
-      for (const ch of row) if (ch !== '.' && !(CH.indexOf(ch) >= 0 && CH.indexOf(ch) < s.p.length)) throw new Error(k + ': bad palette index ' + ch);
-    }
-    if (!s.p.every(c => /^#[0-9a-f]{6}$/i.test(c))) throw new Error(k + ': bad palette colour');
-  }
-  console.log('SPRITES block is valid (' + SP.n + 'x' + SP.n + ').');
-} catch (e) { console.log('SPRITES block problem: ' + e.message); bad++; }
-// tools/sprite-editor.html carries a copy of drawPlayer(); fail if it drifted from the game's
-try {
-  const fnRe = /function drawPlayer\(X,Y\)\{[\s\S]*?\n\}\n/;
-  const ed = fs.readFileSync(path.join(__dirname, 'sprite-editor.html'), 'utf8').replace(/\r\n/g, '\n');
-  const a = src.match(fnRe), b = ed.match(fnRe);
-  if (!a || !b || a[0] !== b[0]) { console.log('tools/sprite-editor.html drawPlayer() is out of sync with ' + file + ' — copy the function over'); bad++; }
-  else console.log('sprite-editor.html drawPlayer() is in sync.');
-} catch (e) { console.log('sprite-editor.html check skipped: ' + e.message); }
+// the editors carry copies of code that lives in the game; fail if a copy drifted
+const cut = (t, a, b) => { const i = t.indexOf(a), j = t.indexOf(b); return i < 0 || j < 0 ? null : t.slice(i, j + b.length); };
+const fnRe = /function drawPlayer\(X,Y\)\{[\s\S]*?\n\}\n/;
+const shared = {
+  'sprite-editor.html': [t => (t.match(fnRe) || [])[0]],
+  'pixel-editor.html': [t => (t.match(fnRe) || [])[0], t => cut(t, '// @@TILEGEN-BEGIN', '// @@TILEGEN-END'), t => cut(t, '// @@CHARS-BEGIN', '// @@CHARS-END')],
+};
+for (const [name, getters] of Object.entries(shared)) {
+  try {
+    const ed = fs.readFileSync(path.join(__dirname, name), 'utf8').replace(/\r\n/g, '\n');
+    const ok = getters.every(g => { const x = g(src), y = g(ed); return x && y && x.trimEnd() === y.trimEnd(); });
+    if (ok) console.log(name + ' shared code is in sync.');
+    else { console.log(name + ' is out of sync with ' + file + ' (drawPlayer / tile generator / character presets): copy the code over'); bad++; }
+  } catch (e) { console.log(name + ' check skipped: ' + e.message); }
+}
 process.exit(bad ? 1 : 0);

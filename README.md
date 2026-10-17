@@ -4,6 +4,7 @@ Sokoban-style puzzle for Android Chrome: push boxes until every star has a box o
 (sorted by number of boxes, then by minimum moves). Some stages have spare boxes.
 
 ## Play
+On the start screen choose a **character** and a **tile set** (or paste custom art made in the editors), then press Play.
 Open `index.html` in Chrome, or host the folder on any static host (e.g. GitHub Pages).
 On Android: menu → **Add to Home screen / Install app** — it then works offline.
 
@@ -28,9 +29,9 @@ Saved in `localStorage`: `bp_lvl` (current stage), `bp_best2` (best moves per st
   game engine, and keeps the `SOLUTIONS` block in `index.html` (used by HINT and the par display) up to date.
   `tools/par-cache.json` caches the proven answers so normal runs take about a second.
 - `tools/make-icons.js` — regenerates the PNG icons (no dependencies).
-- `tools/tile-editor.html` — open in a browser to redraw the floor, wall, box, box-on-star and star pixel by pixel
-  (32×32 or 64×64, PNG import, looks such as treasure chest / cherry / stone wall / grass); copy the generated
-  `SPRITES` block into `index.html`.
+- `tools/pixel-editor.html` — open in a browser to draw the character (every pose and direction, so face and clothes can be
+  painted) or the tiles (floor, wall, box, box on star, star) pixel by pixel, 32×32 or 64×64, with PNG import and ready-made
+  looks (treasure chest, cherry, stone wall, grass). Copy the code and paste it into the start screen's *Custom art* box.
 - `tools/sprite-editor.html` — open in a browser to restyle the player (hair, hat, outfit, extras, colours, presets,
   live preview of every pose); copy the generated `PAL` and `LOOK` lines into `index.html`.
 
