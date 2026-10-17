@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#1b2a38">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Box Pusher</title>
+<style>
+:root{--bg:#1b2a38;--panel:#cfe9f0;--panel2:#a9d4e2;--btn:#5fd0f0;--btn2:#1f8fc4;--ink:#12303d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;touch-action:manipulation;font-family:system-ui,sans-serif}
+#app{height:100%;max-width:520px;margin:0 auto;display:flex;flex-direction:column;background:var(--panel);border-left:4px solid var(--panel2);border-right:4px solid var(--panel2)}
+#top{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;color:var(--ink);font-weight:700}
+#top button{background:var(--btn2);color:#fff;border:0;border-radius:8px;width:40px;height:34px;font-size:18px}
+#top button:disabled{opacity:.35}
+#title{text-align:center;line-height:1.25}
+#sub{font-size:12px;font-weight:600;opacity:.75}
+#boardWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:6px 10px}
+canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100%;border:4px solid #fff7b0;border-radius:6px;background:#2f6f7a}
+#ctrl{display:flex;align-items:center;justify-content:space-around;padding:10px 8px 22px}
+#dpad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,64px);gap:2px}
+.d{background:linear-gradient(#7fe0f7,var(--btn));border:3px solid #0a2b3a;border-bottom-width:7px;border-bottom-color:var(--btn2);border-radius:14px;display:flex;align-items:center;justify-content:center}
+.d:active,.a:active{transform:translateY(3px);filter:brightness(.9)}
+.d svg{width:26px;height:26px;fill:#e6fbff}
+#up{grid-area:1/2}#left{grid-area:2/1}#right{grid-area:2/3}#down{grid-area:3/2}
+#side{display:flex;flex-direction:column;gap:12px;align-items:center}
+.a{width:96px;height:54px;border:3px solid #0a2b3a;border-radius:12px;font-weight:800;font-size:15px;color:#fff;letter-spacing:.5px}
+#undo{background:var(--btn2);border-bottom-width:7px}
+#restart{background:#d63fa6;border-bottom-width:7px;border-radius:30px}
+#hint{background:#e0a21b;border-bottom-width:7px;color:#3b2a00}
+#hint:disabled{opacity:.6}
+#title{cursor:pointer}
+#pick{position:fixed;inset:0;background:rgba(10,30,40,.75);display:none;align-items:center;justify-content:center;padding:16px}
+#pickBox{background:var(--panel);border:4px solid #fff7b0;border-radius:16px;color:var(--ink);width:100%;max-width:420px;max-height:100%;display:flex;flex-direction:column}
+#pickBox h2{margin:0;padding:14px 16px 6px;font-size:18px}
+#pickHead,.pr{display:grid;grid-template-columns:2.2em 1fr 3em 3em 3em 4.4em;gap:4px;padding:6px 16px;align-items:center;font-size:14px}
+#pickHead{font-size:12px;opacity:.7;font-weight:700}
+#list{overflow:auto;flex:1;min-height:0}
+.pr{width:100%;border:0;background:none;color:inherit;font:inherit;text-align:left;border-top:1px solid var(--panel2);height:40px}
+.pr:active{background:var(--panel2)}
+.pr.cur{background:#fff7b0}
+#pickHead span:nth-child(n+3),.pr span:nth-child(n+3){text-align:center}
+.pr .st{color:#e0a21b;letter-spacing:1px;font-size:13px}
+#pickSum{padding:0 16px 8px;font-size:13px;font-weight:600;opacity:.85}
+.pr b{font-weight:800}
+.pr .ok{color:#1c8a3a;font-weight:800}
+#pickClose{margin:10px 16px 14px;background:var(--btn2);color:#fff;border:0;border-radius:10px;padding:10px;font-size:15px;font-weight:700}
+#toast{position:fixed;left:50%;bottom:210px;transform:translateX(-50%);background:rgba(10,30,40,.9);color:#fff;padding:8px 16px;border-radius:20px;font-weight:700;font-size:14px;display:none;pointer-events:none;white-space:nowrap}
+#msg{position:fixed;inset:0;background:rgba(10,30,40,.75);display:none;align-items:center;justify-content:center}
+#msg div{background:var(--panel);padding:24px 30px;border-radius:16px;text-align:center;color:var(--ink);border:4px solid #fff7b0}
+#msg h2{margin:0 0 4px}
+#ws{font-size:44px;line-height:1.1;letter-spacing:4px;margin-bottom:6px}
+#ws .on{color:#f2b01e;text-shadow:0 2px 0 #b57a00}
+#ws .off{color:#9db8c6}
+#msg button{background:var(--btn2);color:#fff;border:0;border-radius:10px;padding:12px 22px;font-size:16px;font-weight:700}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <button id="prev">◀</button>
+    <div id="title">
+      <div>Stage <span id="lv">1</span> · Moves <span id="mv">0</span></div>
+      <div id="sub"><span id="nb">1</span> boxes · Par <span id="par">–</span> · Best <span id="best">–</span></div>
+    </div>
+    <button id="next">▶</button>
+  </div>
+  <div id="boardWrap"><canvas id="c"></canvas></div>
+  <div id="ctrl">
+    <div id="dpad">
+      <button class="d" id="up" data-dx="0" data-dy="-1"><svg viewBox="0 0 24 24"><path d="M12 5l9 14H3z"/></svg></button>
+      <button class="d" id="left" data-dx="-1" data-dy="0"><svg viewBox="0 0 24 24"><path d="M5 12l14-9v18z"/></svg></button>
+      <button class="d" id="right" data-dx="1" data-dy="0"><svg viewBox="0 0 24 24"><path d="M19 12L5 3v18z"/></svg></button>
+      <button class="d" id="down" data-dx="0" data-dy="1"><svg viewBox="0 0 24 24"><path d="M12 19L3 5h18z"/></svg></button>
+    </div>
+    <div id="side">
+      <button class="a" id="undo">UNDO</button>
+      <button class="a" id="restart">RESTART</button>
+      <button class="a" id="hint">HINT</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<div id="pick"><div id="pickBox"><h2>Stages</h2><div id="pickSum"></div><div id="pickHead"><span>#</span><span>Shape</span><span>Boxes</span><span>Par</span><span>Best</span><span>Stars</span></div><div id="list"></div><button id="pickClose">Close</button></div></div>
+<div id="msg"><div><h2>Stage clear!</h2><div id="ws"></div><p id="mm"></p><button id="go">Next stage</button></div></div>
+
+<script>
+// # wall, space floor, . target, $ box, @ player, _ outside
+const LEVELS = [
+[
+"__________",
+"__________",
+"__________",
+"__#######_",
+"_#      #_",
+"#       #_",
+"#  $ #. #_",
+"#  @ #  #_",
+"_#######__",
+"__________"
+],
+[
+"__________",
+"_____###__",
+"____#   #_",
+"___#  $@#_",
+"__#     #_",
+"___#.#  #_",
+"___#   ##_",
+"___#    #_",
+"____####__",
+"__________"
+],
+[
+"_###______",
+"#   #_____",
+"#    #____",
+"# @$ ###__",
+"#       #_",
+"#   #.  #_",
+"#       #_",
+"_####   #_",
+"_____###__",
+"__________"
+],
+[
+"__________",
+"_######___",
+"#      #__",
+"#@$##. #__",
+"#       #_",
+"# ###   #_",
+"_#___###__",
+"__________",
+"__________",
+"__________"
+],
+[
+"__________",
+"__________",
+"____######",
+"######  # ",
+"    $@    ",
+"    ##    ",
+"####### . ",
+"_______###",
+"__________",
+"__________"
+],
+[
+"______###_",
+"_____#   #",
+"__##_# # #",
+"_#  ## # #",
+"_#       #",
+"_#  ##   #",
+"_# @$ # .#",
+"_#    #  #",
+"_# #     #",
+"__#_#####_"
+],
+[
+"########",
+"#  @   #",
+"# $$ . #",
+"#   .  #",
+"########"
+],
+[
+"#########",
+"#   #   #",
+"# $ # . #",
+"# @ $ . #",
+"#   #   #",
+"#########"
+],
+[
+"__#####___",
+"_#     #__",
+"_# ##  #__",
+"_#   # #__",
+"_# $ # #__",
+"_##    #__",
+"__##$##___",
+"___#@#____",
+"___#.#____",
+"___###____"
+],
+[
+"__________",
+"__________",
+"____#####_",
+"__##     #",
+"_#  ##   #",
+"#.   $@$ #",
+" .  #    #",
+"#########_",
+"__________",
+"__________"
+],
+[
+"__________",
+"__________",
+"___###____",
+"_##   ###_",
+"#  #     #",
+" $.. $@  #",
+"   #     #",
+"#########_",
+"__________",
+"__________"
+],
+[
+"_###______",
+"_#.#______",
+"_#@#______",
+"##$####___",
+"#     #___",
+"##    #___",
+"## #  #___",
+"####  #___",
+"# $   #___",
+"#     #___"
+],
+[
+"__________",
+"__________",
+"__######__",
+"_#  #   #_",
+"_#  $   #_",
+"# . #$  #_",
+"#.  #@  #_",
+"_## ####__",
+"__# #_____",
+"___#______"
+],
+[
+"___#####___",
+"___#   #___",
+"___# . #___",
+"####$  ####",
+"#         #",
+"#         #",
+"#        @#",
+"####   ####",
+"___#$. #___",
+"___#   #___",
+"___#####___"
+],
+[
+"______####",
+"_____# . .",
+"_____#    ",
+"___###   #",
+"_##  # # #",
+"# #  # $ #",
+"#    ##  #",
+"# @$     #",
+"_#####  #_",
+"______##__"
+],
+[
+"_#######_",
+"##  .  ##",
+"#  $$   #",
+"# # @ # #",
+"#  $ .  #",
+"##  .  ##",
+"_#######_"
+],
+[
+"#######",
+"#.  # #",
+"#  $  #",
+"# #$# #",
+"#.$@  #",
+"#   . #",
+"#######"
+],
+[
+"___#####___",
+"__##   ##__",
+"_##   $ ##_",
+"##   .   ##",
+"#       $ #",
+"#         #",
+"#@ .   .  #",
+"##       ##",
+"_##   $ ##_",
+"__##   ##__",
+"___#####___"
+],
+[
+"_####_####_",
+"##  ###@ ##",
+"# $  #    #",
+"#  .    . #",
+"# $$      #",
+"##       ##",
+"_##     ##_",
+"__##   ##__",
+"___##.##___",
+"____###____"
+],
+[
+"__________",
+"__________",
+"_____###__",
+"_####  #__",
+"_#  $$ #__",
+"_#  $@ #__",
+"_#...###__",
+"_####_____",
+"__________",
+"__________"
+],
+[
+"_##_______",
+"#  #####__",
+"#      #__",
+"#   $  #__",
+"####$$#___",
+"__## @#___",
+"__# ..#___",
+"__#  .#___",
+"__#####___",
+"__________"
+],
+[
+"##########",
+"#   #    #",
+"# $ # .  #",
+"#  $$ .  #",
+"# @  #.  #",
+"#   ##   #",
+"##########"
+],
+[
+"##########",
+"#  ...   #",
+"#   ##   #",
+"#        #",
+"#    #####",
+"##      #_",
+"_### $  #_",
+"_#   $$ #_",
+"_#  @ # #_",
+"_########_"
+],
+[
+"#########",
+"#  .    #",
+"#  $ #  #",
+"#. $@$ .#",
+"#    $  #",
+"#  .    #",
+"#########"
+],
+[
+"########",
+"#. #   #",
+"#  $ # #",
+"# $@$  #",
+"#  $ # #",
+"#. #. .#",
+"########"
+],
+[
+"____###____",
+"___##.##___",
+"####   ####",
+"#.       .#",
+"##   $   ##",
+"_##     ##_",
+"_##  $$ ##_",
+"_#@$ #   #_",
+"_# .###  #_",
+"_####_####_"
+],
+[
+"_#######__",
+"#       #_",
+"#  .$.  #_",
+"#  # #  #_",
+"#  $@$  #_",
+"#  $ $  #_",
+"#  # #  #_",
+"#  .$.  #_",
+"#       #_",
+"_#######__"
+]
+];
+const STAGE_NAMES = ["Bowl", "Ring", "Hut", "Corridor", "Ledge", "Spiral", "Twins", "Split", "Flask", "Tunnel", "Alley", "Shaft", "Gap", "Plus", "Maze", "Chamber", "Gate", "Circle", "Heart", "Pocket", "Cave", "Hall", "Warehouse", "Diamond", "Crossroads", "Star", "Cross Room"];
+
+const SOLUTIONS = [
+"uLUrrrURd",
+"lULdRDlULd",
+"URdddLDrrrDRuRUl",
+"URdLDrrrrDRRUlDLu",
+"llDLLUrrrrrURdLDrURd",
+"DRRUlDLuuLUrrrrrLUUURRDDdd",
+"LdrLLDrrUr",
+"RrrDRuLLLUULdLDrrrr",
+"uuRRUUUULLLLDDRRdddd",
+"llllRRRDRRRUlllllULdRDl",
+"lDLuLLDLLUrrrrDRRUlllRRUULdRDl",
+"dddRRDDDDLLLUrrDRuuuuRUllDLuuu",
+"RUULllULddRDlUURRRRDDLuRUlllULd",
+"LLLDDDLLuuuuLUrDRuuRUULLDdddLDrURdd",
+"URRDRRRURUUULLDDrDDLLLULLDrrrrDRuuRuuuLUURRDlDLLDDrDRuuuuDLLUURrDDLu",
+"RUULddLuLUrDDdLDrUr",
+"RRUULllRRRDDDLLLLUUuRRddlDr",
+"UURURURURRdRDlRRddRDlDLDllDLuuRUl",
+"DDDDLLLLLuLUrrrULULdLDrDrrUrrrLLdddd",
+"llULdRRRRUULdRDlUldLLUrrDRRUULdRDllULd",
+"uuRUlllDrURddddUUULLLLUURdLDrrrddUUURddd",
+"RurrrDRuLLLLLLUURdLDrrrrURdRRUlDLLLLLUURdLDrrr",
+"UUrLDDRuLUURRRDDllDLuuuuLUUURRRDDLlDDDDRRulDLuuuLuuLUrrrrDDLlDDDRRRUllDLuuLuuLUrDDrrrURRUllDRRDllllDLuu",
+"rrDllUllRuDd",
+"lULddRrUrrLdUUllDLuRRRURRDdd",
+"DRuuuuDRRuDRRDDLullRRuuLuuDrrrLLLLllDRDdd",
+"llDDDRrUUlULddLDrUURRrrUUULlDDrDRuuRUl"
+];
+
+const T = 32;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const $ = id => document.getElementById(id);
+let lvl = 0, W, H, walls, targets, boxes, player, history, moves, won, hintUsed;
+let msgT = null, hintTimer = null, hintToken = 0, solving = false, toastT = null;
+let facing = {x:0,y:1}, pose = 'idle', step = 0, poseT = null;   // player sprite state (see drawPlayer)
+function setPose(p, ms){
+  pose = p; clearTimeout(poseT);
+  if (p!=='idle') poseT = setTimeout(()=>{ pose='idle'; draw(); }, ms);   // fall back to standing still
+}
+
+try { lvl = Math.min(LEVELS.length-1, parseInt(localStorage.getItem('bp_lvl')||'0',10)||0); } catch(e){}
+
+// best move counts per stage layout: {layoutId: moves} under localStorage key bp_best2
+function levelId(n){ let h=5381; for (const ch of LEVELS[n].join('|')) h=((h*33)^ch.charCodeAt(0))>>>0; return h.toString(36); }
+function readBest(){ try { return JSON.parse(localStorage.getItem('bp_best2')||'{}')||{}; } catch(e){ return {}; } }
+function bestOf(n){ return readBest()[levelId(n)]; }
+function saveBest(n, m){ try { const b = readBest(); b[levelId(n)] = m; localStorage.setItem('bp_best2', JSON.stringify(b)); } catch(e){} }
+function parOf(n){ return SOLUTIONS[n] ? SOLUTIONS[n].length : null; }
+function starsFor(moves, par){ return !par || moves<=par ? 3 : moves<=par*1.5 ? 2 : 1; }   // 3 = par or better, 2 = within +50%, 1 = passed
+function readStars(){ try { return JSON.parse(localStorage.getItem('bp_stars')||'{}')||{}; } catch(e){ return {}; } }
+function saveStars(n, st){ try { const o = readStars(), id = levelId(n); if (!(o[id] >= st)) { o[id] = st; localStorage.setItem('bp_stars', JSON.stringify(o)); } } catch(e){} }
+function starsOf(n){ const b = bestOf(n); return Math.max(readStars()[levelId(n)]||0, b===undefined ? 0 : starsFor(b, parOf(n))); }
+const starText = k => '★'.repeat(k)+'☆'.repeat(3-k);
+function boxCount(n){ return LEVELS[n].join('').split('$').length-1; }
+
+function parse(n){
+  const rows = LEVELS[n], h = rows.length, w = Math.max(...rows.map(r=>r.length));
+  const wl = [], tg = new Set(), bx = new Set(); let p = null;
+  for (let y=0;y<h;y++){ wl[y]=[];
+    for (let x=0;x<w;x++){
+      const ch = rows[y][x] || '_';
+      wl[y][x] = ch==='#' ? 1 : ch==='_' ? 2 : 0;
+      if (ch==='.') tg.add(x+','+y);
+      if (ch==='$') bx.add(x+','+y);
+      if (ch==='@') p = {x,y};
+    }
+  }
+  return {W:w, H:h, walls:wl, targets:tg, boxes:bx, player:p};
+}
+
+function load(n){
+  stopHint(); hintToken++;
+  lvl = n;
+  try { localStorage.setItem('bp_lvl', n); } catch(e){}
+  ({W, H, walls, targets, boxes, player} = parse(n));
+  history = []; moves = 0; won = false; hintUsed = false;
+  facing = {x:0,y:1}; step = 0; setPose('idle');
+  cv.width = W*T; cv.height = H*T;
+  $('lv').textContent = n+1; $('nb').textContent = boxCount(n);
+  $('prev').disabled = n===0;
+  $('next').disabled = n===LEVELS.length-1;
+  const b = bestOf(n);
+  $('best').textContent = b===undefined ? '–' : b;
+  $('par').textContent = parOf(n) || '–';
+  clearTimeout(msgT); $('msg').style.display='none';
+  draw();
+}
+
+function toast(t){
+  const e = $('toast'); e.textContent = t; e.style.display = 'block';
+  clearTimeout(toastT); toastT = setTimeout(()=>e.style.display='none', 1800);
+}
+
+function move(dx,dy){
+  if (won) return false;
+  const nx = player.x+dx, ny = player.y+dy;
+  if (ny<0||ny>=H||nx<0||nx>=W||walls[ny][nx]) return false;
+  const k = nx+','+ny;
+  let pushed = false;
+  if (boxes.has(k)){
+    const bx = nx+dx, by = ny+dy;
+    if (by<0||by>=H||bx<0||bx>=W||walls[by][bx]||boxes.has(bx+','+by)) return false;
+    history.push({p:{...player}, b:new Set(boxes)});
+    boxes.delete(k); boxes.add(bx+','+by); pushed = true;
+  } else {
+    history.push({p:{...player}, b:new Set(boxes)});
+  }
+  player = {x:nx,y:ny}; moves++;
+  facing = {x:dx,y:dy}; step ^= 1; setPose(pushed ? 'push' : 'walk', pushed ? 380 : 220);
+  if (navigator.vibrate && pushed) navigator.vibrate(8);
+  draw();
+  if ([...targets].every(t=>boxes.has(t))) win();
+  return true;
+}
+// moves made by the player (d-pad, swipe, keys) cancel any running hint playback
+function userMove(dx,dy){ stopHint(); hintToken++; move(dx,dy); }
+function undo(){
+  stopHint(); hintToken++;
+  if (!history.length || won) return;
+  const s = history.pop(); player = s.p; boxes = s.b; moves = Math.max(0,moves-1); setPose('idle'); draw();
+}
+function win(){
+  won = true; stopHint();
+  const best = bestOf(lvl), par = parOf(lvl);
+  const st = hintUsed ? 1 : starsFor(moves, par);       // a hinted clear counts as passed (1 star)
+  saveStars(lvl, st);
+  $('ws').innerHTML = [1,2,3].map(k=>'<span class="'+(k<=st?'on':'off')+'">★</span>').join('');
+  let t = 'Solved in '+moves+' moves';
+  if (hintUsed) t += ' (hint used, best not recorded)';
+  else if (best===undefined || moves<best){ saveBest(lvl, moves); $('best').textContent = moves; t += best===undefined ? ' — first clear!' : ' — new best!'; }
+  else t += ' (best '+best+')';
+  if (par) t += ' · par '+par;
+  $('mm').textContent = t;
+  const last = lvl===LEVELS.length-1;
+  $('go').textContent = last ? 'Play again' : 'Next stage';
+  clearTimeout(msgT); msgT = setTimeout(()=>$('msg').style.display='flex', 250);
+}
+
+function px(x,y,w,h,c){ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); }
+function draw(){
+  $('mv').textContent = moves;
+  for (let y=0;y<H;y++) for (let x=0;x<W;x++){
+    const X=x*T, Y=y*T;
+    px(X,Y,T,T, (x+y)%2? '#4f9aa3':'#4a939c');
+    px(X,Y,T,1,'#2f6f7a'); px(X,Y,1,T,'#2f6f7a');
+    if (walls[y][x]===1){
+      px(X,Y,T,T,'#a9694a'); px(X+2,Y+2,T-4,T-4,'#c4825c');
+      ctx.strokeStyle='#8a4f35'; ctx.lineWidth=2; ctx.beginPath();
+      ctx.moveTo(X+4,Y+4); ctx.lineTo(X+T-4,Y+T-4); ctx.moveTo(X+T-4,Y+4); ctx.lineTo(X+4,Y+T-4); ctx.stroke();
+    }
+    if (targets.has(x+','+y)){
+      const cx=X+T/2, cy=Y+T/2; ctx.fillStyle='#ffe98a'; ctx.beginPath();
+      ctx.moveTo(cx,cy-9); ctx.lineTo(cx+3,cy-3); ctx.lineTo(cx+9,cy); ctx.lineTo(cx+3,cy+3);
+      ctx.lineTo(cx,cy+9); ctx.lineTo(cx-3,cy+3); ctx.lineTo(cx-9,cy); ctx.lineTo(cx-3,cy-3); ctx.fill();
+    }
+  }
+  for (const b of boxes){
+    const [x,y]=b.split(',').map(Number), X=x*T, Y=y*T, on=targets.has(b);
+    px(X+4,Y+4,T-8,T-8, on?'#e0b45a':'#8a6246'); px(X+6,Y+6,T-12,T-12, on?'#f5d584':'#a98062');
+    px(X+9,Y+10,10,6,'#d9d2c3');
+  }
+  drawPlayer(player.x*T, player.y*T);
+}
+
+// Player sprite. Three poses, each facing the last move direction:
+//   idle - standing still (arms down, feet together)
+//   walk - feet/arms alternate each step
+//   push - leaning into the box, arms out straight, wide braced feet, dust puff behind
+// Colours + style: edit with tools/sprite-editor.html, which prints replacements for these two lines.
+// LOOK options: hair short|spiky|long|bun|bald, hat none|cap|beanie|crown|headband,
+//               outfit plain|stripes|overalls, extra none|glasses|scarf|backpack
+const PAL = {hair:'#f07cb4', hairBack:'#c8639a', skin:'#ffe0d0', shirt:'#8a63d2', collar:'#ffffff', shoe:'#4a2b5c', eye:'#3a1f3a', sweat:'#b8e8ff', dust:'#fbe6f1', hat:'#ffd35c', hatBand:'#e0a21b', accent:'#ffd35c'};
+const LOOK = {hair:'long', hat:'crown', outfit:'plain', extra:'scarf'};
+function drawPlayer(X,Y){
+  const HAIR=PAL.hair, SKIN=PAL.skin, SHIRT=PAL.shirt, SHOE=PAL.shoe, ACC=PAL.accent;
+  const dx=facing.x, dy=facing.y, push=pose==='push', walk=pose==='walk';
+  const bx=X+dx*(push?2:0), by=Y+dy*(push?2:0);          // body leans into the push
+  // feet (stay on the ground; wide when pushing, one lifted when walking)
+  const sp = push ? 2 : 0, lift = walk ? -2 : 0;
+  px(X+10-sp,Y+27+(step?lift:0),5,3,SHOE); px(X+17+sp,Y+27+(step?0:lift),5,3,SHOE);
+  // backpack seen from the side sits behind the body
+  if (LOOK.extra==='backpack' && dx!==0) px(bx+(dx>0?3:24),by+18,5,9,ACC);
+  // torso
+  px(bx+9,by+18,14,9,SHIRT);
+  if (dy>=0) px(bx+13,by+18,6,5,PAL.collar);              // collar (not visible from behind)
+  if (LOOK.outfit==='stripes'){ px(bx+9,by+20,14,2,ACC); px(bx+9,by+24,14,2,ACC); }
+  else if (LOOK.outfit==='overalls'){ px(bx+9,by+22,14,5,ACC); px(bx+11,by+18,2,5,ACC); px(bx+19,by+18,2,5,ACC); }
+  if (LOOK.extra==='backpack' && dy<0) px(bx+10,by+18,12,9,ACC);
+  if (LOOK.extra==='backpack' && dy>0){ px(bx+10,by+18,2,8,ACC); px(bx+20,by+18,2,8,ACC); }
+  if (LOOK.extra==='scarf'){ px(bx+9,by+17,14,3,ACC); px(bx+(dx<0?9:20),by+19,3,6,ACC); }
+  // head
+  if (LOOK.hair==='bald') px(bx+8,by+4,16,14,SKIN);
+  else {
+    px(bx+8,by+3,16,8,HAIR); px(bx+7,by+8,18,5,HAIR);
+    if (LOOK.hair==='spiky'){ px(bx+9,by+1,3,3,HAIR); px(bx+14,by,4,4,HAIR); px(bx+20,by+1,3,3,HAIR); }
+    else if (LOOK.hair==='bun') px(bx+13,by-1,6,5,HAIR);
+    else if (LOOK.hair==='long'){ px(bx+7,by+13,3,8,HAIR); px(bx+22,by+13,3,8,HAIR); }
+  }
+  if (dy<0){                                              // back of head
+    if (LOOK.hair==='bald') px(bx+10,by+10,12,8,SKIN);
+    else { const lg = LOOK.hair==='long'; px(bx+(lg?8:10),by+10,lg?16:12,lg?12:8,PAL.hairBack); }
+  } else {
+    px(bx+10,by+10,12,8,SKIN);
+    const ex = dx<0 ? [11,14] : dx>0 ? [17,20] : [13,18];
+    if (push){ px(bx+ex[0],by+14,3,1,PAL.eye); px(bx+ex[1],by+14,3,1,PAL.eye); px(bx+23,by+8,2,4,PAL.sweat); } // squint + sweat
+    else { px(bx+ex[0],by+13,2,2,PAL.eye); px(bx+ex[1],by+13,2,2,PAL.eye); }
+    if (LOOK.extra==='glasses'){
+      for (const e of ex){ px(bx+e-1,by+12,4,1,ACC); px(bx+e-1,by+15,4,1,ACC); px(bx+e-1,by+13,1,2,ACC); px(bx+e+2,by+13,1,2,ACC); }
+      if (dx===0) px(bx+ex[0]+3,by+13,ex[1]-ex[0]-3,1,ACC);
+    }
+  }
+  // hats
+  if (LOOK.hat==='cap'){
+    px(bx+8,by+1,16,7,PAL.hat); px(bx+7,by+6,18,2,PAL.hat);
+    if (dy>0) px(bx+8,by+8,16,2,PAL.hatBand); else if (dx>0) px(bx+21,by+6,8,2,PAL.hatBand); else if (dx<0) px(bx+3,by+6,8,2,PAL.hatBand);
+  } else if (LOOK.hat==='beanie'){
+    px(bx+8,by+1,16,9,PAL.hat); px(bx+7,by+8,18,3,PAL.hatBand); px(bx+14,by-1,4,3,PAL.hatBand);
+  } else if (LOOK.hat==='crown'){
+    px(bx+9,by+2,14,4,PAL.hat); px(bx+9,by,3,3,PAL.hat); px(bx+14,by-1,4,4,PAL.hat); px(bx+20,by,3,3,PAL.hat); px(bx+9,by+5,14,1,PAL.hatBand);
+  } else if (LOOK.hat==='headband') px(bx+7,by+7,18,2,PAL.hat);
+  // arms
+  if (push){
+    if (dx>0){ px(bx+22,by+19,8,4,SHIRT); px(bx+30,by+19,3,4,SKIN); px(bx+6,by+19,4,6,SHIRT); }
+    else if (dx<0){ px(bx+2,by+19,8,4,SHIRT); px(bx-1,by+19,3,4,SKIN); px(bx+22,by+19,4,6,SHIRT); }
+    else if (dy>0){ px(bx+6,by+22,4,8,SHIRT); px(bx+6,by+30,4,3,SKIN); px(bx+22,by+22,4,8,SHIRT); px(bx+22,by+30,4,3,SKIN); }
+    else { px(bx+6,by+8,4,12,SHIRT); px(bx+6,by+5,4,3,SKIN); px(bx+22,by+8,4,12,SHIRT); px(bx+22,by+5,4,3,SKIN); }
+    px(X+16-dx*14-1, Y+25-dy*12, 3, 3, PAL.dust); px(X+16-dx*11-1, Y+28-dy*9, 2, 2, PAL.dust);  // dust puff
+  } else {
+    const sw = walk ? (step?1:-1) : 0;                      // arms swing opposite to the feet
+    px(bx+6,by+19+sw,4,6,SHIRT); px(bx+22,by+19-sw,4,6,SHIRT);
+  }
+}
+
+// ---- hint: replay the solver's optimal path from the current position ----
+// Push-state Dijkstra (see solveBFS); runs in a worker built from this source so the UI stays responsive.
+function solveBFS(s){
+  // A* over "push states" (boxes + where the player stands after a push); walking between pushes is
+  // collapsed into one BFS flood, so it is move-optimal but far smaller than a step-by-step search. The heuristic
+  // (pushes each star still needs, ignoring other boxes) never overestimates, so the answer stays optimal.
+  // Win = every star has a box on it. Returns a path (UDLR step, udlr push), null (unsolvable) or -1 (gave up).
+  const W=s.W, H=s.H, N=W*H, blocked=s.blocked, goal=s.goal, LIMIT=s.limit||400000, WT=s.weight||1;   // WT>1 = faster but only near-optimal (dev tool use)
+  const D=[[0,-1,'U'],[0,1,'D'],[-1,0,'L'],[1,0,'R']];
+  const targets=[]; for (let i=0;i<N;i++) if (goal[i]) targets.push(i);
+  const cmp=(a,b)=>a-b, key=(p,b)=>p+'|'+b.join(',');
+  // dT[k][cell] = fewest pushes to bring a box from cell to target k (ignoring other boxes); BIG = never
+  const BIG=1000000, exact=s.boxes.length===targets.length, dT=[], alive=new Uint8Array(N);
+  for (const t of targets){
+    const dd=new Int32Array(N).fill(BIG), q=[t]; dd[t]=0;
+    for (let h=0; h<q.length; h++){
+      const c=q[h], x=c%W, y=(c/W)|0;
+      for (const [dx,dy] of D){
+        const bx=x+dx, by=y+dy, px=x+2*dx, py=y+2*dy;
+        if (bx<0||by<0||bx>=W||by>=H||px<0||py<0||px>=W||py>=H) continue;
+        const b=by*W+bx, p=py*W+px; if (blocked[b]||blocked[p]||dd[b]<BIG) continue;
+        dd[b]=dd[c]+1; q.push(b);
+      }
+    }
+    dT.push(dd); for (let c=0;c<N;c++) if (dd[c]<BIG) alive[c]=1;
+  }
+  if (!exact) alive.fill(1);   // with spare boxes a box may be parked on a dead square
+  // cheapest way to give every star its own box (exact assignment by DP over which boxes are used)
+  const hOf=b=>{
+    const m=b.length, full=1<<m; let dp=new Int32Array(full).fill(BIG); dp[0]=0;
+    for (let k=0; k<targets.length; k++){
+      const nx=new Int32Array(full).fill(BIG), dk=dT[k];
+      for (let mask=0; mask<full; mask++){
+        const v=dp[mask]; if (v>=BIG) continue;
+        for (let j=0; j<m; j++){ if (mask&(1<<j)) continue; const c=dk[b[j]]; if (c>=BIG) continue; const w=v+c, mm=mask|(1<<j); if (w<nx[mm]) nx[mm]=w; }
+      }
+      dp=nx;
+    }
+    let best=BIG; for (let mask=0; mask<full; mask++) if (dp[mask]<best) best=dp[mask];
+    return best;
+  };
+  // state storage
+  const b0=s.boxes.slice().sort(cmp);
+  const SP=[s.player], SB=[b0], SD=[0], SH=[hOf(b0)], SPar=[-1], SC=[-1], SDi=[-1], ids=new Map([[key(s.player,b0),0]]);
+  // binary min-heap of [dist, state]
+  const hd=[WT*SH[0]], hs=[0];
+  const push=(d,i)=>{ let k=hd.length; hd.push(d); hs.push(i); while(k>0){ const p=(k-1)>>1; if (hd[p]<=d) break; hd[k]=hd[p]; hs[k]=hs[p]; k=p; } hd[k]=d; hs[k]=i; };
+  const pop=()=>{ const d=hd[0], i=hs[0], ld=hd.pop(), li=hs.pop(); const n=hd.length;
+    if (n>0){ let k=0; for(;;){ let c=2*k+1; if (c>=n) break; if (c+1<n && hd[c+1]<hd[c]) c++; if (hd[c]>=ld) break; hd[k]=hd[c]; hs[k]=hs[c]; k=c; } hd[k]=ld; hs[k]=li; }
+    return [d,i]; };
+  // shortest walk a->b avoiding boxes, as a UDLR string (used for reconstruction)
+  const walk=(a,b,occ)=>{
+    if (a===b) return '';
+    const prev=new Int32Array(N).fill(-2), pc=new Array(N), q=[a]; prev[a]=-1;
+    for (let h=0; h<q.length; h++){
+      const c=q[h], x=c%W, y=(c/W)|0;
+      for (const [dx,dy,ch] of D){
+        const nx=x+dx, ny=y+dy; if (nx<0||ny<0||nx>=W||ny>=H) continue;
+        const n=ny*W+nx; if (blocked[n]||occ[n]||prev[n]!==-2) continue;
+        prev[n]=c; pc[n]=ch; if (n===b){ let out=''; for (let k=b; k!==a; k=prev[k]) out=pc[k]+out; return out; } q.push(n);
+      }
+    }
+    return '';
+  };
+  const dist=new Int32Array(N), occ=new Uint8Array(N);
+  while (hd.length){
+    const [f,i]=pop(); const d=SD[i]; if (f>d+WT*SH[i]) continue;
+    const p=SP[i], b=SB[i];
+    if (targets.every(t=>b.indexOf(t)>=0)){
+      const edges=[]; for (let k=i; SPar[k]>=0; k=SPar[k]) edges.push([SC[k],SDi[k]]);
+      edges.reverse();
+      let out='', pos=s.player, bx=s.boxes.slice();
+      for (const [c,di] of edges){
+        const o=new Uint8Array(N); for (const k of bx) o[k]=1;
+        const [dx,dy,ch]=D[di];
+        out+=walk(pos,c-(dy*W+dx),o)+ch.toLowerCase();
+        bx[bx.indexOf(c)]=c+dy*W+dx; pos=c;
+      }
+      return out;
+    }
+    if (SP.length>LIMIT) return -1;
+    // flood from the player with boxes as walls
+    dist.fill(-1); occ.fill(0); for (const k of b) occ[k]=1;
+    const q=[p]; dist[p]=0;
+    for (let h=0; h<q.length; h++){
+      const c=q[h], x=c%W, y=(c/W)|0;
+      for (const [dx,dy] of D){
+        const nx=x+dx, ny=y+dy; if (nx<0||ny<0||nx>=W||ny>=H) continue;
+        const n=ny*W+nx; if (blocked[n]||occ[n]||dist[n]>=0) continue;
+        dist[n]=dist[c]+1; q.push(n);
+      }
+    }
+    for (let k=0; k<b.length; k++){
+      const c=b[k], x=c%W, y=(c/W)|0;
+      for (let di=0; di<4; di++){
+        const [dx,dy]=D[di], ox=x-dx, oy=y-dy, tx=x+dx, ty=y+dy;
+        if (ox<0||oy<0||ox>=W||oy>=H||tx<0||ty<0||tx>=W||ty>=H) continue;
+        const o=oy*W+ox, t=ty*W+tx;
+        if (dist[o]<0 || blocked[t] || occ[t] || !alive[t]) continue;
+        const nd=d+dist[o]+1, nb=b.slice(); nb[k]=t; nb.sort(cmp);
+        const kk=key(c,nb), j=ids.get(kk);
+        if (j===undefined){ const hh=hOf(nb); if (hh>=BIG) continue; ids.set(kk,SP.length); SP.push(c); SB.push(nb); SD.push(nd); SH.push(hh); SPar.push(i); SC.push(c); SDi.push(di); push(nd+WT*hh,SP.length-1); }
+        else if (nd<SD[j]){ SD[j]=nd; SPar[j]=i; SC[j]=c; SDi[j]=di; push(nd+WT*SH[j],j); }
+      }
+    }
+  }
+  return null;
+}
+function solveAsync(job){
+  return new Promise(res=>{
+    try {
+      const src = solveBFS.toString()+';onmessage=function(e){postMessage(solveBFS(e.data))}';
+      const url = URL.createObjectURL(new Blob([src],{type:'text/javascript'}));
+      const w = new Worker(url);
+      w.onmessage = e=>{ w.terminate(); URL.revokeObjectURL(url); res(e.data); };
+      w.onerror = ()=>{ w.terminate(); res(solveBFS(job)); };
+      w.postMessage(job);
+    } catch(e){ res(solveBFS(job)); }
+  });
+}
+function stateJob(){
+  const blocked = new Array(W*H).fill(0), goal = new Array(W*H).fill(0);
+  for (let y=0;y<H;y++) for (let x=0;x<W;x++){ if (walls[y][x]) blocked[y*W+x]=1; if (targets.has(x+','+y)) goal[y*W+x]=1; }
+  return {W,H,blocked,goal,limit:400000,player:player.y*W+player.x,boxes:[...boxes].map(k=>{const [x,y]=k.split(',').map(Number);return y*W+x;})};
+}
+const sk = (p,b)=>p.x+','+p.y+'|'+[...b].sort().join(';');
+const DIRS = {U:[0,-1],D:[0,1],L:[-1,0],R:[1,0]};
+// If the current state lies on the precomputed optimal path from the stage start, return the rest of it.
+function precomputedRest(){
+  const sol = SOLUTIONS[lvl]; if (!sol) return null;
+  const st = parse(lvl); let p = st.player, b = st.boxes; const cur = sk(player, boxes);
+  for (let i=0;i<=sol.length;i++){
+    if (sk(p,b)===cur) return sol.slice(i);
+    if (i===sol.length) break;
+    const [dx,dy] = DIRS[sol[i].toUpperCase()], k = (p.x+dx)+','+(p.y+dy);
+    if (b.has(k)){ b = new Set(b); b.delete(k); b.add((p.x+2*dx)+','+(p.y+2*dy)); }
+    p = {x:p.x+dx,y:p.y+dy};
+  }
+  return null;
+}
+function stopHint(){
+  clearInterval(hintTimer); hintTimer = null;
+  const h = $('hint'); if (h && !solving){ h.textContent='HINT'; h.disabled=false; }
+}
+function playPath(path){
+  const h = $('hint'); h.textContent='STOP'; h.disabled=false;
+  let i = 0;
+  hintTimer = setInterval(()=>{
+    if (won || i>=path.length || !move(...DIRS[path[i].toUpperCase()])){ stopHint(); return; }
+    i++;
+  }, 170);
+}
+async function hint(){
+  if (hintTimer){ stopHint(); return; }
+  if (won || solving) return;
+  hintUsed = true;
+  let path = precomputedRest();
+  if (path===null){
+    const token = ++hintToken, n = lvl;
+    solving = true; const h = $('hint'); h.textContent='...'; h.disabled=true;
+    path = await solveAsync(stateJob());
+    solving = false; h.textContent='HINT'; h.disabled=false;
+    if (token!==hintToken || n!==lvl) return;   // player moved on while we were thinking
+    if (path===-1){ toast('Too complex from here: Restart, then Hint'); return; }
+    if (path===null){ toast('Stuck! Undo or restart'); return; }
+  }
+  if (!path.length) return;
+  playPath(path);
+}
+
+// ---- controls ----
+// d-pad with hold-to-repeat
+document.querySelectorAll('.d').forEach(b=>{
+  let t=null, iv=null;
+  const dx=+b.dataset.dx, dy=+b.dataset.dy;
+  const stop=()=>{clearTimeout(t);clearInterval(iv);};
+  b.addEventListener('pointerdown',e=>{e.preventDefault(); userMove(dx,dy); stop();
+    t=setTimeout(()=>{iv=setInterval(()=>userMove(dx,dy),130)},350);});
+  ['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,stop));
+});
+// swipe on the board: one move per ~cell of travel, so a long drag keeps walking
+(function(){
+  let id=null, ox=0, oy=0;
+  cv.addEventListener('pointerdown',e=>{ id=e.pointerId; ox=e.clientX; oy=e.clientY; try{cv.setPointerCapture(id);}catch(_){} });
+  cv.addEventListener('pointermove',e=>{
+    if (e.pointerId!==id) return;
+    const dx=e.clientX-ox, dy=e.clientY-oy, cell=cv.clientWidth/W;
+    const th=Math.max(20, Math.min(cell*0.8, 44));
+    if (Math.max(Math.abs(dx),Math.abs(dy))<th) return;
+    if (Math.abs(dx)>Math.abs(dy)) userMove(dx>0?1:-1,0); else userMove(0,dy>0?1:-1);
+    ox=e.clientX; oy=e.clientY;
+  });
+  ['pointerup','pointercancel'].forEach(ev=>cv.addEventListener(ev,e=>{ if (e.pointerId===id) id=null; }));
+})();
+function openPick(){
+  const l = $('list'); l.textContent = '';
+  let cleared = 0, total = 0;
+  for (let i=0;i<LEVELS.length;i++){
+    const b = bestOf(i), par = parOf(i), r = document.createElement('button');
+    r.className = 'pr'+(i===lvl?' cur':'');
+    const sc = starsOf(i); total += sc; if (sc) cleared++;
+    const cells = [i+1, STAGE_NAMES[i]||'', boxCount(i), par||'–', b===undefined ? '–' : b, sc ? starText(sc) : '–'];
+    cells.forEach((v,k)=>{ const e = document.createElement(k===0?'b':'span'); e.textContent = v; if (k===4 && b!==undefined && par && b<=par) e.className='ok'; if (k===5) e.className='st'; r.appendChild(e); });
+    r.onclick = ()=>{ $('pick').style.display='none'; load(i); };
+    l.appendChild(r);
+  }
+  $('pickSum').textContent = 'Cleared '+cleared+'/'+LEVELS.length+' · ★ '+total+'/'+(LEVELS.length*3)+' · Perfect '+LEVELS.map((_,i)=>starsOf(i)).filter(x=>x===3).length;
+  $('pick').style.display = 'flex';
+  const cur = l.querySelector('.cur'); if (cur) cur.scrollIntoView({block:'center'});
+}
+$('title').onclick = openPick;
+$('pickClose').onclick = ()=>{ $('pick').style.display='none'; };
+$('pick').onclick = e=>{ if (e.target===$('pick')) $('pick').style.display='none'; };
+$('undo').onclick = undo;
+$('restart').onclick = ()=>load(lvl);
+$('hint').onclick = hint;
+$('prev').onclick = ()=>load(lvl-1);
+$('next').onclick = ()=>load(lvl+1);
+$('go').onclick = ()=>load(lvl===LEVELS.length-1?0:lvl+1);
+window.addEventListener('keydown',e=>{
+  const m={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];
+  if (m){e.preventDefault();userMove(...m);} else if (e.key==='z') undo(); else if (e.key==='r') load(lvl); else if (e.key==='h') hint();
+});
+load(lvl);
+
+// PWA: offline cache (only when served over http/https; the game also works opened as a plain file)
+try { if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(()=>{}); } catch(e){}
+</script>
+</body>
+</html>

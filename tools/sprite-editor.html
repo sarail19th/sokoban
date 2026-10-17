@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Box Pusher sprite editor</title>
+<style>
+:root{--bg:#1b2a38;--panel:#243a4c;--ink:#e6f3f8;--mut:#9db8c6;--acc:#5fd0f0;--line:#35516a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,sans-serif}
+header{padding:14px 20px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:18px} header p{margin:4px 0 0;color:var(--mut)}
+h2{margin:18px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+main{display:flex;flex-wrap:wrap;gap:20px;padding:0 20px 30px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px 16px 16px}
+#controls{flex:0 0 340px;max-width:100%}
+#view{flex:1 1 560px}
+.sel select{background:#162532;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+.row{display:flex;align-items:center;gap:8px;margin:5px 0}
+.row label{flex:1}
+.row input[type=color]{width:42px;height:28px;border:1px solid var(--line);border-radius:6px;background:none;padding:0}
+.row input[type=text]{width:84px;background:#162532;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-family:ui-monospace,monospace}
+.chk{display:flex;gap:6px;align-items:center;color:var(--mut);margin:8px 0 0}
+button{background:#1f8fc4;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer;margin:4px 6px 0 0}
+button.alt{background:#3a566e}
+#presets button{padding:6px 10px}
+textarea{width:100%;background:#162532;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:12px/1.4 ui-monospace,monospace}
+#grid{display:grid;grid-template-columns:90px repeat(4,1fr);gap:6px;align-items:center}
+#grid .h{color:var(--mut);font-size:12px;text-align:center}
+#grid .l{color:var(--mut);font-size:12px}
+#grid canvas{width:100%;aspect-ratio:1;image-rendering:pixelated;border-radius:6px;background:#4a939c}
+#strip{image-rendering:pixelated;width:100%;max-width:640px;border-radius:6px;display:block}
+.note{color:var(--mut);margin:8px 0 0;font-size:12px}
+#msg{color:var(--acc);height:18px;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Box Pusher · player sprite editor</h1>
+  <p>Pick style and colours, see every pose live, copy the two lines and paste them over <code>const PAL</code> / <code>const LOOK</code> in <code>index.html</code> (or send them to Claude). Works offline: just open this file.</p>
+</header>
+<main>
+  <section id="controls">
+    <h2>Style</h2>
+    <div id="looks"></div>
+    <h2>Colours</h2>
+    <div id="rows"></div>
+    <label class="chk"><input type="checkbox" id="auto" checked> back-of-head colour follows hair</label>
+    <h2>Presets</h2>
+    <div id="presets"></div>
+    <h2>Lines for index.html</h2>
+    <textarea id="out" rows="8" spellcheck="false"></textarea>
+    <button id="copy">Copy</button><button id="load" class="alt">Load from text</button><button id="reset" class="alt">Reset</button>
+    <div id="msg"></div>
+  </section>
+  <section id="view">
+    <h2>All poses (standing · walking ×2 · pushing)</h2>
+    <div id="grid"></div>
+    <h2>Looks in the game (3× zoom)</h2>
+    <canvas id="strip" width="224" height="32"></canvas>
+    <p class="note">The preview uses the same <code>drawPlayer()</code> code as the game. To add new style options or change body shapes, edit <code>drawPlayer()</code> in <code>index.html</code>, then re-sync this file (see CLAUDE.md).</p>
+  </section>
+</main>
+<script>
+// ---- same drawing code as the game (kept in sync; node tools/solve.js checks this) ----
+const T = 32;
+let ctx, facing = {x:0,y:1}, pose = 'idle', step = 0;
+function px(x,y,w,h,c){ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); }
+const PAL = {}, LOOK = {};
+function drawPlayer(X,Y){
+  const HAIR=PAL.hair, SKIN=PAL.skin, SHIRT=PAL.shirt, SHOE=PAL.shoe, ACC=PAL.accent;
+  const dx=facing.x, dy=facing.y, push=pose==='push', walk=pose==='walk';
+  const bx=X+dx*(push?2:0), by=Y+dy*(push?2:0);          // body leans into the push
+  // feet (stay on the ground; wide when pushing, one lifted when walking)
+  const sp = push ? 2 : 0, lift = walk ? -2 : 0;
+  px(X+10-sp,Y+27+(step?lift:0),5,3,SHOE); px(X+17+sp,Y+27+(step?0:lift),5,3,SHOE);
+  // backpack seen from the side sits behind the body
+  if (LOOK.extra==='backpack' && dx!==0) px(bx+(dx>0?3:24),by+18,5,9,ACC);
+  // torso
+  px(bx+9,by+18,14,9,SHIRT);
+  if (dy>=0) px(bx+13,by+18,6,5,PAL.collar);              // collar (not visible from behind)
+  if (LOOK.outfit==='stripes'){ px(bx+9,by+20,14,2,ACC); px(bx+9,by+24,14,2,ACC); }
+  else if (LOOK.outfit==='overalls'){ px(bx+9,by+22,14,5,ACC); px(bx+11,by+18,2,5,ACC); px(bx+19,by+18,2,5,ACC); }
+  if (LOOK.extra==='backpack' && dy<0) px(bx+10,by+18,12,9,ACC);
+  if (LOOK.extra==='backpack' && dy>0){ px(bx+10,by+18,2,8,ACC); px(bx+20,by+18,2,8,ACC); }
+  if (LOOK.extra==='scarf'){ px(bx+9,by+17,14,3,ACC); px(bx+(dx<0?9:20),by+19,3,6,ACC); }
+  // head
+  if (LOOK.hair==='bald') px(bx+8,by+4,16,14,SKIN);
+  else {
+    px(bx+8,by+3,16,8,HAIR); px(bx+7,by+8,18,5,HAIR);
+    if (LOOK.hair==='spiky'){ px(bx+9,by+1,3,3,HAIR); px(bx+14,by,4,4,HAIR); px(bx+20,by+1,3,3,HAIR); }
+    else if (LOOK.hair==='bun') px(bx+13,by-1,6,5,HAIR);
+    else if (LOOK.hair==='long'){ px(bx+7,by+13,3,8,HAIR); px(bx+22,by+13,3,8,HAIR); }
+  }
+  if (dy<0){                                              // back of head
+    if (LOOK.hair==='bald') px(bx+10,by+10,12,8,SKIN);
+    else { const lg = LOOK.hair==='long'; px(bx+(lg?8:10),by+10,lg?16:12,lg?12:8,PAL.hairBack); }
+  } else {
+    px(bx+10,by+10,12,8,SKIN);
+    const ex = dx<0 ? [11,14] : dx>0 ? [17,20] : [13,18];
+    if (push){ px(bx+ex[0],by+14,3,1,PAL.eye); px(bx+ex[1],by+14,3,1,PAL.eye); px(bx+23,by+8,2,4,PAL.sweat); } // squint + sweat
+    else { px(bx+ex[0],by+13,2,2,PAL.eye); px(bx+ex[1],by+13,2,2,PAL.eye); }
+    if (LOOK.extra==='glasses'){
+      for (const e of ex){ px(bx+e-1,by+12,4,1,ACC); px(bx+e-1,by+15,4,1,ACC); px(bx+e-1,by+13,1,2,ACC); px(bx+e+2,by+13,1,2,ACC); }
+      if (dx===0) px(bx+ex[0]+3,by+13,ex[1]-ex[0]-3,1,ACC);
+    }
+  }
+  // hats
+  if (LOOK.hat==='cap'){
+    px(bx+8,by+1,16,7,PAL.hat); px(bx+7,by+6,18,2,PAL.hat);
+    if (dy>0) px(bx+8,by+8,16,2,PAL.hatBand); else if (dx>0) px(bx+21,by+6,8,2,PAL.hatBand); else if (dx<0) px(bx+3,by+6,8,2,PAL.hatBand);
+  } else if (LOOK.hat==='beanie'){
+    px(bx+8,by+1,16,9,PAL.hat); px(bx+7,by+8,18,3,PAL.hatBand); px(bx+14,by-1,4,3,PAL.hatBand);
+  } else if (LOOK.hat==='crown'){
+    px(bx+9,by+2,14,4,PAL.hat); px(bx+9,by,3,3,PAL.hat); px(bx+14,by-1,4,4,PAL.hat); px(bx+20,by,3,3,PAL.hat); px(bx+9,by+5,14,1,PAL.hatBand);
+  } else if (LOOK.hat==='headband') px(bx+7,by+7,18,2,PAL.hat);
+  // arms
+  if (push){
+    if (dx>0){ px(bx+22,by+19,8,4,SHIRT); px(bx+30,by+19,3,4,SKIN); px(bx+6,by+19,4,6,SHIRT); }
+    else if (dx<0){ px(bx+2,by+19,8,4,SHIRT); px(bx-1,by+19,3,4,SKIN); px(bx+22,by+19,4,6,SHIRT); }
+    else if (dy>0){ px(bx+6,by+22,4,8,SHIRT); px(bx+6,by+30,4,3,SKIN); px(bx+22,by+22,4,8,SHIRT); px(bx+22,by+30,4,3,SKIN); }
+    else { px(bx+6,by+8,4,12,SHIRT); px(bx+6,by+5,4,3,SKIN); px(bx+22,by+8,4,12,SHIRT); px(bx+22,by+5,4,3,SKIN); }
+    px(X+16-dx*14-1, Y+25-dy*12, 3, 3, PAL.dust); px(X+16-dx*11-1, Y+28-dy*9, 2, 2, PAL.dust);  // dust puff
+  } else {
+    const sw = walk ? (step?1:-1) : 0;                      // arms swing opposite to the feet
+    px(bx+6,by+19+sw,4,6,SHIRT); px(bx+22,by+19-sw,4,6,SHIRT);
+  }
+}
+// ---- editor ----
+const DEFAULT = {hair:'#1f9bd0', hairBack:'#1884b3', skin:'#ffd9c2', shirt:'#2a72b8', collar:'#ffffff', shoe:'#222233', eye:'#222222', sweat:'#9fe3ff', dust:'#e8fbff', hat:'#d63a3a', hatBand:'#a82a2a', accent:'#f2b01e'};
+const DEFLOOK = {hair:'short', hat:'none', outfit:'plain', extra:'none'};
+const OPTIONS = {
+  hair:   ['short','spiky','long','bun','bald'],
+  hat:    ['none','cap','beanie','crown','headband'],
+  outfit: ['plain','stripes','overalls'],
+  extra:  ['none','glasses','scarf','backpack'],
+};
+const OPT_LABELS = {hair:'Hair style', hat:'Hat', outfit:'Outfit', extra:'Extra'};
+const LABELS = {hair:'Hair / cap', hairBack:'Hair (seen from behind)', skin:'Skin', shirt:'Shirt & sleeves', collar:'Collar', shoe:'Shoes', eye:'Eyes', sweat:'Sweat drop (pushing)', dust:'Dust puff (pushing)', hat:'Hat', hatBand:'Hat band / brim', accent:'Accent (stripes, overalls, glasses, scarf, bag)'};
+const PRESETS = {
+  'Default': Object.assign({}, DEFAULT, {look: DEFLOOK}),
+  'Ruby':   {hair:'#d63a3a', hairBack:'#b02f2f', skin:'#ffd9c2', shirt:'#f2b01e', collar:'#fff4c9', shoe:'#3b2a20', eye:'#222222', sweat:'#9fe3ff', dust:'#f3e3d3', hat:'#2b2b2b', hatBand:'#111111', accent:'#e8e8e8', look:{hair:'spiky', hat:'cap', outfit:'stripes', extra:'none'}},
+  'Forest': {hair:'#2e9b5a', hairBack:'#26804b', skin:'#f1c9a5', shirt:'#6b4f2d', collar:'#e8e1c0', shoe:'#2a2a2a', eye:'#1a1a1a', sweat:'#9fe3ff', dust:'#e2efe0', hat:'#3f7d3a', hatBand:'#2c5a29', accent:'#c9a35a', look:{hair:'short', hat:'beanie', outfit:'overalls', extra:'backpack'}},
+  'Sakura': {hair:'#f07cb4', hairBack:'#c8639a', skin:'#ffe0d0', shirt:'#8a63d2', collar:'#ffffff', shoe:'#4a2b5c', eye:'#3a1f3a', sweat:'#b8e8ff', dust:'#fbe6f1', hat:'#ffd35c', hatBand:'#e0a21b', accent:'#ffd35c', look:{hair:'long', hat:'crown', outfit:'plain', extra:'scarf'}},
+  'Shadow': {hair:'#33343d', hairBack:'#2b2c34', skin:'#8d5524', shirt:'#c0392b', collar:'#eeeeee', shoe:'#111111', eye:'#ffffff', sweat:'#9fe3ff', dust:'#cfcfcf', hat:'#444444', hatBand:'#222222', accent:'#f2b01e', look:{hair:'bald', hat:'headband', outfit:'plain', extra:'glasses'}},
+};
+let pal = JSON.parse(JSON.stringify(DEFAULT)), look = Object.assign({}, DEFLOOK);
+try { const s = JSON.parse(localStorage.getItem('bp_editor_pal')||'null'); if (s) { Object.assign(pal, s.pal||{}); Object.assign(look, s.look||{}); } } catch(e){}
+
+const $ = id => document.getElementById(id);
+const dirs = [['Down',0,1],['Up',0,-1],['Left',-1,0],['Right',1,0]];
+const poses = [['Standing','idle',0],['Walk A','walk',0],['Walk B','walk',1],['Pushing','push',0]];
+
+// build UI
+const selects = {};
+Object.keys(OPTIONS).forEach(k=>{
+  const d = document.createElement('div'); d.className = 'row sel';
+  d.innerHTML = `<label for="o_${k}">${OPT_LABELS[k]}</label><select id="o_${k}">${OPTIONS[k].map(o=>`<option>${o}</option>`).join('')}</select>`;
+  $('looks').appendChild(d); selects[k] = d.querySelector('select');
+  selects[k].onchange = ()=>{ look[k] = selects[k].value; sync(); };
+});
+const rows = $('rows'), inputs = {};
+Object.keys(DEFAULT).forEach(k=>{
+  const r = document.createElement('div'); r.className='row';
+  r.innerHTML = `<label for="c_${k}">${LABELS[k]}</label><input type="color" id="c_${k}"><input type="text" id="t_${k}" maxlength="7" spellcheck="false">`;
+  rows.appendChild(r);
+  const c = r.querySelector('input[type=color]'), t = r.querySelector('input[type=text]');
+  inputs[k] = {c,t};
+  c.oninput = ()=>setColor(k, c.value);
+  t.onchange = ()=>{ if (/^#[0-9a-f]{6}$/i.test(t.value.trim())) setColor(k, t.value.trim().toLowerCase()); else t.value = pal[k]; };
+});
+const presetBox = $('presets');
+Object.entries(PRESETS).forEach(([n,p])=>{ const b=document.createElement('button'); b.className='alt'; b.textContent=n; b.onclick=()=>{ const {look:l, ...c} = p; Object.assign(pal,c); Object.assign(look, DEFLOOK, l||{}); sync(); }; presetBox.appendChild(b); });
+const rnd = document.createElement('button'); rnd.textContent='Random'; rnd.onclick=()=>{
+  const h=Math.random()*360, hsl=(h,s,l)=>{ const a=s*Math.min(l,1-l), f=n=>{const k=(n+h/30)%12; return l-a*Math.max(-1,Math.min(k-3,9-k,1));}; return '#'+[f(0),f(8),f(4)].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join(''); };
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+  pal.hair=hsl(h,.7,.5); pal.shirt=hsl((h+150)%360,.55,.42); pal.hairBack=shade(pal.hair,.85);
+  pal.hat=hsl((h+60)%360,.65,.5); pal.hatBand=shade(pal.hat,.75); pal.accent=hsl((h+210)%360,.7,.55);
+  Object.keys(OPTIONS).forEach(k=>look[k]=pick(OPTIONS[k])); sync();
+}; presetBox.appendChild(rnd);
+
+function shade(hex,f){ const n=parseInt(hex.slice(1),16); return '#'+[n>>16,(n>>8)&255,n&255].map(v=>Math.round(v*f).toString(16).padStart(2,'0')).join(''); }
+function setColor(k,v){ pal[k]=v; if (k==='hair' && $('auto').checked) pal.hairBack = shade(v,.85); sync(); }
+
+// preview grid
+const grid = $('grid'), cells = [];
+grid.appendChild(document.createElement('div'));
+dirs.forEach(d=>{ const h=document.createElement('div'); h.className='h'; h.textContent=d[0]; grid.appendChild(h); });
+poses.forEach(p=>{
+  const l=document.createElement('div'); l.className='l'; l.textContent=p[0]; grid.appendChild(l);
+  dirs.forEach(d=>{ const cv=document.createElement('canvas'); cv.width=96; cv.height=96; grid.appendChild(cv); cells.push({cv,p,d}); });
+});
+function floor(c,w,h){ for(let y=0;y<h;y+=T)for(let x=0;x<w;x+=T){ c.fillStyle=((x+y)/T)%2?'#4f9aa3':'#4a939c'; c.fillRect(x,y,T,T); c.fillStyle='#2f6f7a'; c.fillRect(x,y,T,1); c.fillRect(x,y,1,T);} }
+function crate(c,x,y){ c.fillStyle='#8a6246'; c.fillRect(x+4,y+4,T-8,T-8); c.fillStyle='#a98062'; c.fillRect(x+6,y+6,T-12,T-12); c.fillStyle='#d9d2c3'; c.fillRect(x+9,y+10,10,6); }
+function star(c,x,y){ const cx=x+16,cy=y+16; c.fillStyle='#ffe98a'; c.beginPath(); c.moveTo(cx,cy-9); c.lineTo(cx+3,cy-3); c.lineTo(cx+9,cy); c.lineTo(cx+3,cy+3); c.lineTo(cx,cy+9); c.lineTo(cx-3,cy+3); c.lineTo(cx-9,cy); c.lineTo(cx-3,cy-3); c.fill(); }
+function drawFigure(c,x,y,po,st,dx,dy){ ctx=c; facing={x:dx,y:dy}; pose=po; step=st; drawPlayer(x,y); }
+
+function render(){
+  Object.assign(PAL, pal); Object.assign(LOOK, look);
+  cells.forEach(({cv,p,d})=>{
+    const c=cv.getContext('2d'); floor(c,96,96);
+    if (p[1]==='push') crate(c,32+d[1]*32,32+d[2]*32);
+    drawFigure(c,32,32,p[1],p[2],d[1],d[2]);
+  });
+  const s=$('strip').getContext('2d'); floor(s,224,32);
+  crate(s,96,0); star(s,128,0); crate(s,160,0);
+  drawFigure(s,0,0,'idle',0,0,1);                      // standing
+  drawFigure(s,32,0,'walk',0,1,0);                     // walking right
+  drawFigure(s,64,0,'push',0,1,0);                     // pushing a crate to the right
+  drawFigure(s,192,0,'push',0,-1,0);                   // pushing a crate to the left
+}
+function text(){
+  return 'const PAL = {' + Object.keys(DEFAULT).map(k=>`${k}:'${pal[k]}'`).join(', ') + '};\n' +
+         'const LOOK = {' + Object.keys(DEFLOOK).map(k=>`${k}:'${look[k]}'`).join(', ') + '};';
+}
+function sync(){
+  Object.keys(DEFAULT).forEach(k=>{ inputs[k].c.value=pal[k]; inputs[k].t.value=pal[k]; });
+  Object.keys(OPTIONS).forEach(k=>{ selects[k].value = look[k]; });
+  $('out').value = text(); render();
+  try { localStorage.setItem('bp_editor_pal', JSON.stringify({pal, look})); } catch(e){}
+}
+function say(t){ $('msg').textContent=t; setTimeout(()=>{ if($('msg').textContent===t) $('msg').textContent=''; },2500); }
+$('copy').onclick = async ()=>{ try { await navigator.clipboard.writeText(text()); say('Copied. Paste over the const PAL and const LOOK lines in index.html.'); } catch(e){ $('out').select(); say('Select + Ctrl+C to copy.'); } };
+$('load').onclick = ()=>{
+  const found = [...$('out').value.matchAll(/(\w+)\s*:\s*'(#[0-9a-fA-F]{6})'/g)]; let n=0;
+  found.forEach(([,k,v])=>{ if (k in DEFAULT){ pal[k]=v.toLowerCase(); n++; } });
+  [...$('out').value.matchAll(/(\w+)\s*:\s*'([a-z]+)'/g)].forEach(([,k,v])=>{ if (OPTIONS[k] && OPTIONS[k].includes(v)){ look[k]=v; n++; } });
+  sync(); say(n ? `Loaded ${n} settings.` : 'Nothing recognised in that text.');
+};
+$('reset').onclick = ()=>{ Object.assign(pal, DEFAULT); Object.assign(look, DEFLOOK); sync(); say('Reset to the default look.'); };
+sync();
+</script>
+</body>
+</html>
