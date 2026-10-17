@@ -61,7 +61,7 @@ per-stage best moves, installable PWA.
   colours if it needs a new `PAL` key + `DEFAULT`/`LABELS` there). The game's default character is the "Sakura" preset
   (`CHAR_PRESETS`); the style editor's Reset still goes back to the original blue one.
 - **Start screen / setup** (`#setup`, JS block after `const $`): shown on first visit and via "Character & tiles" in the stage
-  list. Step 1 pick a character (5 presets + Custom), step 2 pick a tile set (Classic, Treasure, Cherry, Stone & grass +
+  list. Step 1 pick a character (6 presets + Custom; the default is Aoba, a styled look baked to pixels with a black outline via `bakeLook(preset,32,true)` because its preset has `outline:true`), step 2 pick a tile set (Classic, Treasure, Cherry, Stone & grass +
   Custom), then Play. Choices persist in `bp_setup`; pasted custom code in `bp_custom` (raw text, re-parsed on load).
   "Custom art" box accepts the code copied from the editors: `const PAL/LOOK` lines (styled character),
   `const PLAYER = {...}` (pixel character, 16 frames `idle|walkA|walkB|push` x `d|u|l|r`) or `const SPRITES = {...}` (tiles:

@@ -50,7 +50,7 @@ label.chk{color:var(--mut);display:inline-flex;gap:5px;align-items:center;margin
     <p class="note">Changing size converts this set (nearest neighbour). The game scales everything to the tile size.</p>
     <div id="forPlayer">
       <h2>Start the character from…</h2>
-      <select id="base"></select><button id="bake">Bake into pixels</button>
+      <select id="base"></select><button id="bake">Bake into pixels</button><br><label class="chk"><input type="checkbox" id="outline" checked> black outline</label>
       <p class="note">Takes a ready-made look (or the PAL/LOOK lines from the style editor pasted below) and turns all 16 frames into editable pixels. This replaces the current frames.</p>
       <textarea id="lookText" rows="3" spellcheck="false" placeholder="optional: paste const PAL = ...; const LOOK = ...; from the style editor"></textarea>
     </div>
@@ -130,13 +130,38 @@ const LOOKS = {
 };
 // @@TILEGEN-END
 // @@CHARS-BEGIN
+// outline:true = baked into pixels with a black outline (the chunky look of Aoba)
 const CHAR_PRESETS = [
+  {id:'aoba', name:'Aoba', outline:true, PAL:{hair:'#2a9fe0', hairBack:'#1b78b8', skin:'#ffe3d0', shirt:'#4fb2ec', collar:'#f58fb0', shoe:'#15152a', eye:'#c9bd98', sweat:'#b8e8ff', dust:'#dff3ff', hat:'#d63a3a', hatBand:'#a82a2a', accent:'#1f3f8a'}, LOOK:{hair:'long', hat:'none', outfit:'overalls', extra:'none'}},
   {id:'classic', name:'Classic', PAL:{hair:'#1f9bd0', hairBack:'#1884b3', skin:'#ffd9c2', shirt:'#2a72b8', collar:'#ffffff', shoe:'#222233', eye:'#222222', sweat:'#9fe3ff', dust:'#e8fbff', hat:'#d63a3a', hatBand:'#a82a2a', accent:'#f2b01e'}, LOOK:{hair:'short', hat:'none', outfit:'plain', extra:'none'}},
   {id:'ruby', name:'Ruby', PAL:{hair:'#d63a3a', hairBack:'#b02f2f', skin:'#ffd9c2', shirt:'#f2b01e', collar:'#fff4c9', shoe:'#3b2a20', eye:'#222222', sweat:'#9fe3ff', dust:'#f3e3d3', hat:'#2b2b2b', hatBand:'#111111', accent:'#e8e8e8'}, LOOK:{hair:'spiky', hat:'cap', outfit:'stripes', extra:'none'}},
   {id:'forest', name:'Forest', PAL:{hair:'#2e9b5a', hairBack:'#26804b', skin:'#f1c9a5', shirt:'#6b4f2d', collar:'#e8e1c0', shoe:'#2a2a2a', eye:'#1a1a1a', sweat:'#9fe3ff', dust:'#e2efe0', hat:'#3f7d3a', hatBand:'#2c5a29', accent:'#c9a35a'}, LOOK:{hair:'short', hat:'beanie', outfit:'overalls', extra:'backpack'}},
   {id:'sakura', name:'Sakura', PAL:{hair:'#f07cb4', hairBack:'#c8639a', skin:'#ffe0d0', shirt:'#8a63d2', collar:'#ffffff', shoe:'#4a2b5c', eye:'#3a1f3a', sweat:'#b8e8ff', dust:'#fbe6f1', hat:'#ffd35c', hatBand:'#e0a21b', accent:'#ffd35c'}, LOOK:{hair:'long', hat:'crown', outfit:'plain', extra:'scarf'}},
   {id:'shadow', name:'Shadow', PAL:{hair:'#33343d', hairBack:'#2b2c34', skin:'#8d5524', shirt:'#c0392b', collar:'#eeeeee', shoe:'#111111', eye:'#ffffff', sweat:'#9fe3ff', dust:'#cfcfcf', hat:'#444444', hatBand:'#222222', accent:'#f2b01e'}, LOOK:{hair:'bald', hat:'headband', outfit:'plain', extra:'glasses'}},
 ];
+const hex = (r,g,b) => '#' + [r,g,b].map(v => Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('');
+function outlineGrid(g, c){     // every empty pixel touching the sprite (8 neighbours) becomes the outline colour
+  const n = g.length, o = g.map(r => r.slice());
+  for (let y=0;y<n;y++) for (let x=0;x<n;x++) if (!g[y][x]){
+    for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++){ const j=y+dy, i=x+dx; if (j>=0&&i>=0&&j<n&&i<n&&g[j][i]) o[y][x] = c; }
+  }
+  return o;
+}
+function bakeLook(preset, nn, outline){   // render a styled look into 16 pixel frames {idle_d: grid, ...} at nn x nn
+  const keep = {ctx, facing, pose, step, PAL:Object.assign({}, PAL), LOOK:Object.assign({}, LOOK)};
+  Object.assign(PAL, preset.PAL); Object.assign(LOOK, preset.LOOK);
+  const c = document.createElement('canvas'); c.width = c.height = nn; const g = c.getContext('2d', {willReadFrequently:true}), out = {};
+  for (const pk of ['idle','walkA','walkB','push']) for (const dk of ['d','u','l','r']){
+    g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,nn,nn); g.setTransform(nn/32,0,0,nn/32,0,0);
+    ctx = g; facing = {x: dk==='l'?-1:dk==='r'?1:0, y: dk==='d'?1:dk==='u'?-1:0}; pose = pk==='idle'?'idle':pk==='push'?'push':'walk'; step = pk==='walkB'?1:0;
+    drawPlayer(0,0);
+    g.setTransform(1,0,0,1,0,0); const d = g.getImageData(0,0,nn,nn).data; let grid = Array.from({length:nn}, () => Array(nn).fill(null));
+    for (let j=0;j<nn;j++) for (let i=0;i<nn;i++){ const k=(j*nn+i)*4; if (d[k+3] >= 128) grid[j][i] = hex(d[k],d[k+1],d[k+2]); }
+    out[pk+'_'+dk] = outline ? outlineGrid(grid, '#0b0b14') : grid;
+  }
+  ctx = keep.ctx; facing = keep.facing; pose = keep.pose; step = keep.step; Object.assign(PAL, keep.PAL); Object.assign(LOOK, keep.LOOK);
+  return out;
+}
 // @@CHARS-END
 const T = 32;
 let ctx, facing = {x:0,y:1}, pose = 'idle', step = 0;
@@ -206,27 +231,13 @@ const POSES = [['idle','Stand'],['walkA','Walk A'],['walkB','Walk B'],['push','P
 const PLAYER_KEYS = POSES.flatMap(p => DIRS.map(d => p[0]+'_'+d[0])), PLAYER_NAMES = {};
 POSES.forEach(p => DIRS.forEach(d => { PLAYER_NAMES[p[0]+'_'+d[0]] = p[1]+' · '+d[1]; }));
 const $ = id => document.getElementById(id);
-const hex = (r,g,b) => '#' + [r,g,b].map(v => Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('');
 const CH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-function bake(preset, nn){
-  Object.assign(PAL, preset.PAL); Object.assign(LOOK, preset.LOOK);
-  const c = document.createElement('canvas'); c.width = c.height = nn; const g = c.getContext('2d', {willReadFrequently:true}), out = {};
-  for (const [pk] of POSES) for (const [dk] of DIRS){
-    g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,nn,nn); g.setTransform(nn/32,0,0,nn/32,0,0);
-    ctx = g; facing = {x: dk==='l'?-1:dk==='r'?1:0, y: dk==='d'?1:dk==='u'?-1:0}; pose = pk==='idle'?'idle':pk==='push'?'push':'walk'; step = pk==='walkB'?1:0;
-    drawPlayer(0,0);
-    g.setTransform(1,0,0,1,0,0); const d = g.getImageData(0,0,nn,nn).data, grid = mk(nn);
-    for (let j=0;j<nn;j++) for (let i=0;i<nn;i++){ const k=(j*nn+i)*4; if (d[k+3] >= 128) grid[j][i] = hex(d[k],d[k+1],d[k+2]); }
-    out[pk+'_'+dk] = grid;
-  }
-  return out;
-}
 const SETS = {
   tiles:  {n:32, S:originals(), keys:KEYS, names:NAMES, cur:'box', name:'SPRITES', label:'SPRITES block for the game'},
   player: {n:32, S:null, keys:PLAYER_KEYS, names:PLAYER_NAMES, cur:'idle_d', name:'PLAYER', label:'PLAYER code for the game'},
 };
-SETS.player.S = bake(CHAR_PRESETS.find(c => c.id === 'sakura'), 32);
+SETS.player.S = bakeLook(CHAR_PRESETS[0], 32, true);
 let setName = 'player', st = SETS.player, tool = 'pencil', color = '#d63a3a', undoS = [], redoS = [];
 const ed = $('edit'), ec = ed.getContext('2d');
 const snap = () => JSON.stringify({setName, n: st.n, S: st.S, cur: st.cur});
@@ -325,14 +336,14 @@ function say(t){ $('msg').textContent = t; setTimeout(() => { if ($('msg').textC
 
 // character base
 for (const p of CHAR_PRESETS){ const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; $('base').appendChild(o); }
-$('base').value = 'sakura';
+$('base').value = CHAR_PRESETS[0].id;
 $('bake').onclick = () => {
-  let preset = CHAR_PRESETS.find(c => c.id === $('base').value); const t = $('lookText').value.trim();
+  let preset = CHAR_PRESETS.find(c => c.id === $('base').value);   // (a pasted look below overrides it) const t = $('lookText').value.trim();
   if (t){ const pal = {}, look = {};
     for (const [,k,v] of t.matchAll(/(\w+)\s*:\s*'(#[0-9a-fA-F]{6})'/g)) if (k in CHAR_PRESETS[0].PAL) pal[k] = v.toLowerCase();
     for (const [,k,v] of t.matchAll(/(\w+)\s*:\s*'([a-z]+)'/g)) if (k in CHAR_PRESETS[0].LOOK) look[k] = v;
     if (Object.keys(pal).length) preset = {PAL:Object.assign({}, CHAR_PRESETS[0].PAL, pal), LOOK:Object.assign({}, CHAR_PRESETS[0].LOOK, look)}; }
-  pushUndo(); st.S = bake(preset, st.n); sync(); say('Baked ' + (t ? 'the pasted look' : $('base').selectedOptions[0].textContent) + ' into pixels.');
+  pushUndo(); st.S = bakeLook(preset, st.n, $('outline').checked); sync(); say('Baked ' + (t ? 'the pasted look' : $('base').selectedOptions[0].textContent) + ' into pixels.');
 };
 // tile looks
 for (const name of Object.keys(LOOKS)){ const b = document.createElement('button'); b.className = 'alt'; b.textContent = name;
@@ -353,7 +364,7 @@ function parse(text){
   return { n: m, S };
 }
 $('load').onclick = () => { try { const o = parse($('out').value); pushUndo(); st.n = o.n; st.S = o.S; sync(); say('Loaded.'); } catch(e){ say('Could not read that text: ' + e.message); } };
-$('reset').onclick = () => { pushUndo(); st.n = 32; st.S = setName === 'tiles' ? originals() : bake(CHAR_PRESETS.find(c => c.id === 'sakura'), 32); sync(); say('Reset.'); };
+$('reset').onclick = () => { pushUndo(); st.n = 32; st.S = setName === 'tiles' ? originals() : bakeLook(CHAR_PRESETS[0], 32, true); sync(); say('Reset.'); };
 
 try { const s = JSON.parse(localStorage.getItem('bp_pixel') || 'null');
   if (s){ for (const k of ['tiles','player']) if (s[k] && (s[k].n === 32 || s[k].n === 64) && SETS[k].keys.every(q => s[k].S[q])){ SETS[k].n = s[k].n; SETS[k].S = s[k].S; } } } catch(e){}

@@ -496,13 +496,38 @@ const LOOKS = {
 };
 // @@TILEGEN-END
 // @@CHARS-BEGIN
+// outline:true = baked into pixels with a black outline (the chunky look of Aoba)
 const CHAR_PRESETS = [
+  {id:'aoba', name:'Aoba', outline:true, PAL:{hair:'#2a9fe0', hairBack:'#1b78b8', skin:'#ffe3d0', shirt:'#4fb2ec', collar:'#f58fb0', shoe:'#15152a', eye:'#c9bd98', sweat:'#b8e8ff', dust:'#dff3ff', hat:'#d63a3a', hatBand:'#a82a2a', accent:'#1f3f8a'}, LOOK:{hair:'long', hat:'none', outfit:'overalls', extra:'none'}},
   {id:'classic', name:'Classic', PAL:{hair:'#1f9bd0', hairBack:'#1884b3', skin:'#ffd9c2', shirt:'#2a72b8', collar:'#ffffff', shoe:'#222233', eye:'#222222', sweat:'#9fe3ff', dust:'#e8fbff', hat:'#d63a3a', hatBand:'#a82a2a', accent:'#f2b01e'}, LOOK:{hair:'short', hat:'none', outfit:'plain', extra:'none'}},
   {id:'ruby', name:'Ruby', PAL:{hair:'#d63a3a', hairBack:'#b02f2f', skin:'#ffd9c2', shirt:'#f2b01e', collar:'#fff4c9', shoe:'#3b2a20', eye:'#222222', sweat:'#9fe3ff', dust:'#f3e3d3', hat:'#2b2b2b', hatBand:'#111111', accent:'#e8e8e8'}, LOOK:{hair:'spiky', hat:'cap', outfit:'stripes', extra:'none'}},
   {id:'forest', name:'Forest', PAL:{hair:'#2e9b5a', hairBack:'#26804b', skin:'#f1c9a5', shirt:'#6b4f2d', collar:'#e8e1c0', shoe:'#2a2a2a', eye:'#1a1a1a', sweat:'#9fe3ff', dust:'#e2efe0', hat:'#3f7d3a', hatBand:'#2c5a29', accent:'#c9a35a'}, LOOK:{hair:'short', hat:'beanie', outfit:'overalls', extra:'backpack'}},
   {id:'sakura', name:'Sakura', PAL:{hair:'#f07cb4', hairBack:'#c8639a', skin:'#ffe0d0', shirt:'#8a63d2', collar:'#ffffff', shoe:'#4a2b5c', eye:'#3a1f3a', sweat:'#b8e8ff', dust:'#fbe6f1', hat:'#ffd35c', hatBand:'#e0a21b', accent:'#ffd35c'}, LOOK:{hair:'long', hat:'crown', outfit:'plain', extra:'scarf'}},
   {id:'shadow', name:'Shadow', PAL:{hair:'#33343d', hairBack:'#2b2c34', skin:'#8d5524', shirt:'#c0392b', collar:'#eeeeee', shoe:'#111111', eye:'#ffffff', sweat:'#9fe3ff', dust:'#cfcfcf', hat:'#444444', hatBand:'#222222', accent:'#f2b01e'}, LOOK:{hair:'bald', hat:'headband', outfit:'plain', extra:'glasses'}},
 ];
+const hex = (r,g,b) => '#' + [r,g,b].map(v => Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('');
+function outlineGrid(g, c){     // every empty pixel touching the sprite (8 neighbours) becomes the outline colour
+  const n = g.length, o = g.map(r => r.slice());
+  for (let y=0;y<n;y++) for (let x=0;x<n;x++) if (!g[y][x]){
+    for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++){ const j=y+dy, i=x+dx; if (j>=0&&i>=0&&j<n&&i<n&&g[j][i]) o[y][x] = c; }
+  }
+  return o;
+}
+function bakeLook(preset, nn, outline){   // render a styled look into 16 pixel frames {idle_d: grid, ...} at nn x nn
+  const keep = {ctx, facing, pose, step, PAL:Object.assign({}, PAL), LOOK:Object.assign({}, LOOK)};
+  Object.assign(PAL, preset.PAL); Object.assign(LOOK, preset.LOOK);
+  const c = document.createElement('canvas'); c.width = c.height = nn; const g = c.getContext('2d', {willReadFrequently:true}), out = {};
+  for (const pk of ['idle','walkA','walkB','push']) for (const dk of ['d','u','l','r']){
+    g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,nn,nn); g.setTransform(nn/32,0,0,nn/32,0,0);
+    ctx = g; facing = {x: dk==='l'?-1:dk==='r'?1:0, y: dk==='d'?1:dk==='u'?-1:0}; pose = pk==='idle'?'idle':pk==='push'?'push':'walk'; step = pk==='walkB'?1:0;
+    drawPlayer(0,0);
+    g.setTransform(1,0,0,1,0,0); const d = g.getImageData(0,0,nn,nn).data; let grid = Array.from({length:nn}, () => Array(nn).fill(null));
+    for (let j=0;j<nn;j++) for (let i=0;i<nn;i++){ const k=(j*nn+i)*4; if (d[k+3] >= 128) grid[j][i] = hex(d[k],d[k+1],d[k+2]); }
+    out[pk+'_'+dk] = outline ? outlineGrid(grid, '#0b0b14') : grid;
+  }
+  ctx = keep.ctx; facing = keep.facing; pose = keep.pose; step = keep.step; Object.assign(PAL, keep.PAL); Object.assign(LOOK, keep.LOOK);
+  return out;
+}
 // @@CHARS-END
 // ---- setup: choose a character and a tile set (presets, or code pasted from the editors in tools/) ----
 let T = 32;                                   // tile size in canvas pixels (32 or 64); the player is scaled to fit
@@ -547,7 +572,7 @@ function parseLook(text){
   if (!Object.keys(pal).length) throw new Error('no colours found');
   return {PAL:Object.assign({}, CHAR_PRESETS[0].PAL, pal), LOOK:Object.assign({}, CHAR_PRESETS[0].LOOK, look)};
 }
-let sel = {char:'sakura', tiles:'classic', seen:false}, custom = {char:null, tiles:null};   // custom = pasted text
+let sel = {char:'aoba', tiles:'classic', seen:false}, custom = {char:null, tiles:null};   // custom = pasted text
 function readCustom(kind){
   const t = custom[kind]; if (!t) return null;
   try {
@@ -556,9 +581,11 @@ function readCustom(kind){
   } catch(e){ return null; }
 }
 function saveSetup(){ try { localStorage.setItem('bp_setup', JSON.stringify(sel)); localStorage.setItem('bp_custom', JSON.stringify(custom)); } catch(e){} }
+function bakedFor(p){ return p._baked || (p._baked = bakeLook(p, 32, true)); }
 function applyChar(){
-  const cc = sel.char==='custom' ? readCustom('char') : null, p = cc || CHAR_PRESETS.find(c=>c.id===sel.char) || CHAR_PRESETS[3];
+  const cc = sel.char==='custom' ? readCustom('char') : null, p = cc || CHAR_PRESETS.find(c=>c.id===sel.char) || CHAR_PRESETS[0];
   if (cc && cc.kind==='px'){ setPlayerPixels(cc.set); return; }
+  if (p.outline){ setPlayerPixels({n:32, S:bakedFor(p)}); return; }
   setPlayerPixels(null); Object.assign(PAL, p.PAL); Object.assign(LOOK, p.LOOK);
 }
 function applyTiles(){
@@ -567,7 +594,7 @@ function applyTiles(){
 }
 function initSetup(){
   try { Object.assign(sel, JSON.parse(localStorage.getItem('bp_setup')||'null')||{}); Object.assign(custom, JSON.parse(localStorage.getItem('bp_custom')||'null')||{}); } catch(e){}
-  if (sel.char==='custom' && !readCustom('char')) sel.char = 'sakura';
+  if (sel.char==='custom' && !readCustom('char')) sel.char = 'aoba';
   if (sel.tiles==='custom' && !readCustom('tiles')) sel.tiles = 'classic';
   applyChar(); applyTiles();
 }
@@ -575,7 +602,7 @@ function initSetup(){
 function previewCanvas(w, h){ const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
 function drawCharPreview(c, entry){
   const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.fillStyle = '#4a939c'; g.fillRect(0,0,c.width,c.height);
-  if (entry.kind==='px'){ const f = gridCanvas(entry.set.S.idle_d); g.drawImage(f, 0, 0, c.width, c.height); return; }
+  if (entry.kind==='px' || entry.outline){ const f = gridCanvas((entry.kind==='px' ? entry.set.S : bakedFor(entry)).idle_d); g.drawImage(f, 0, 0, c.width, c.height); return; }
   const keepPal = Object.assign({}, PAL), keepLook = Object.assign({}, LOOK), keepCtx = ctx, kf = facing, kp = pose, ks = step, kPx = PLAYER_PX;
   PLAYER_PX = null; Object.assign(PAL, entry.PAL); Object.assign(LOOK, entry.LOOK); ctx = g; facing = {x:0,y:1}; pose = 'idle'; step = 0;
   g.save(); g.scale(c.width/32, c.height/32); drawPlayer(0,0); g.restore();
