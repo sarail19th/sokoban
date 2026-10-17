@@ -47,6 +47,11 @@ per-stage best moves, installable PWA.
 - **Stars** (`starsFor`): 3 = moves <= par, 2 = moves <= 1.5 x par, 1 = passed (any hinted clear is 1). Best stars per
   stage are kept in `bp_stars` (`{layoutId: stars}`, never lowered) and shown in the win dialog and the stage list,
   whose top line summarises the whole game ("Cleared X/30 · ★ Y/90 · Perfect Z").
+- **Desktop mode** (CSS media query `(hover:hover) and (pointer:fine) and (min-width:700px)` + `desktop()` in JS): the app uses the whole window,
+  the on-screen d-pad is hidden (arrow keys / WASD instead), UNDO / RESTART / HINT / FULL SCREEN sit in one row, and `fitBoard()`
+  sizes the canvas to the window with a whole-pixel tile size (on resize / fullscreenchange / stage load). Keys: arrows or WASD,
+  Z undo, R restart, H hint, F full screen (Fullscreen API), Esc closes the stage list, Enter = next stage after a win. Shortcuts
+  are ignored while typing in a text box or while the setup / stage-list screens are open. Touch devices keep the phone layout.
 - **Swipe**: on the canvas, one move per ~0.8 cell of travel (so a long drag keeps walking); canvas has `touch-action:none`.
 - **Player sprite**: `drawPlayer()` has 3 poses (`pose`: idle = standing still, walk = feet/arms alternate, push = leaning
   with arms out, squint, sweat, dust) and faces the last move direction (`facing`). `move()` sets walk/push; a timer

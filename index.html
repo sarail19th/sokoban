@@ -63,6 +63,19 @@ canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100
 #setupBox details button,#setupGo{background:var(--btn2);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-size:15px;font-weight:700;margin-top:6px}
 #setupGo{display:block;width:100%;margin-top:16px;font-size:18px;padding:14px}
 #codeMsg{min-height:18px;margin-top:4px;font-weight:600}
+#fs,#keys{display:none}
+@media (hover:hover) and (pointer:fine) and (min-width:700px){
+  #app{max-width:none;border:0}
+  #dpad{display:none}
+  #ctrl{justify-content:center;padding:8px 8px 6px}
+  #side{flex-direction:row;gap:16px}
+  .a{width:140px;height:50px;font-size:16px}
+  #fs{display:block;background:#3a566e;border-bottom-width:7px;font-size:13px;white-space:nowrap}
+  #keys{display:block;position:fixed;left:0;right:0;bottom:6px;text-align:center;font-size:12px;font-weight:600;color:var(--ink);opacity:.6;pointer-events:none}
+  #ctrl{padding-bottom:26px}
+  #top{padding:10px 24px}
+  #top button{width:48px;height:40px}
+}
 #toast{position:fixed;left:50%;bottom:210px;transform:translateX(-50%);background:rgba(10,30,40,.9);color:#fff;padding:8px 16px;border-radius:20px;font-weight:700;font-size:14px;display:none;pointer-events:none;white-space:nowrap}
 #msg{position:fixed;inset:0;background:rgba(10,30,40,.75);display:none;align-items:center;justify-content:center}
 #msg div{background:var(--panel);padding:24px 30px;border-radius:16px;text-align:center;color:var(--ink);border:4px solid #fff7b0}
@@ -95,9 +108,11 @@ canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100
       <button class="a" id="undo">UNDO</button>
       <button class="a" id="restart">RESTART</button>
       <button class="a" id="hint">HINT</button>
+      <button class="a" id="fs" title="Full screen (F)">FULL SCREEN</button>
     </div>
   </div>
 </div>
+<div id="keys">Arrow keys / WASD move · Z undo · R restart · H hint · F full screen</div>
 <div id="toast"></div>
 <div id="setup"><div id="setupBox">
   <h1>Box Pusher</h1>
@@ -766,9 +781,19 @@ function load(n){
   $('best').textContent = b===undefined ? '–' : b;
   $('par').textContent = parOf(n) || '–';
   clearTimeout(msgT); $('msg').style.display='none';
-  draw();
+  fitBoard(); draw();
 }
 
+const desktop = () => matchMedia('(hover:hover) and (pointer:fine) and (min-width:700px)').matches;
+function fitBoard(){
+  if (!desktop()){ cv.style.width = cv.style.height = ''; return; }
+  const w = $('boardWrap'), aw = w.clientWidth - 20 - 8, ah = w.clientHeight - 12 - 8;
+  const tile = Math.max(16, Math.floor(Math.min(aw / W, ah / H)));
+  cv.style.width = W*tile + 'px'; cv.style.height = H*tile + 'px';
+}
+function toggleFS(){ if (!document.fullscreenElement) document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(()=>{}); else document.exitFullscreen && document.exitFullscreen(); }
+window.addEventListener('resize', fitBoard);
+document.addEventListener('fullscreenchange', ()=>setTimeout(fitBoard, 50));
 function toast(t){
   const e = $('toast'); e.textContent = t; e.style.display = 'block';
   clearTimeout(toastT); toastT = setTimeout(()=>e.style.display='none', 1800);
@@ -1116,6 +1141,7 @@ function openPick(){
 $('title').onclick = openPick;
 $('pickClose').onclick = ()=>{ $('pick').style.display='none'; };
 $('pick').onclick = e=>{ if (e.target===$('pick')) $('pick').style.display='none'; };
+$('fs').onclick = toggleFS;
 $('undo').onclick = undo;
 $('restart').onclick = ()=>load(lvl);
 $('hint').onclick = hint;
@@ -1123,8 +1149,16 @@ $('prev').onclick = ()=>load(lvl-1);
 $('next').onclick = ()=>load(lvl+1);
 $('go').onclick = ()=>load(lvl===LEVELS.length-1?0:lvl+1);
 window.addEventListener('keydown',e=>{
-  const m={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];
-  if (m){e.preventDefault();userMove(...m);} else if (e.key==='z') undo(); else if (e.key==='r') load(lvl); else if (e.key==='h') hint();
+  if (/^(TEXTAREA|INPUT|SELECT)$/.test((e.target.tagName||''))) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const open = ['setup','pick'].some(id => $(id).style.display==='flex');
+  if (e.key==='Escape'){ if ($('pick').style.display==='flex') $('pick').style.display='none'; return; }
+  if (open) return;
+  const k = e.key.length===1 ? e.key.toLowerCase() : e.key;
+  const m = {ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]}[k];
+  if (m){ e.preventDefault(); userMove(...m); }
+  else if (k==='z') undo(); else if (k==='r') load(lvl); else if (k==='h') hint(); else if (k==='f') toggleFS();
+  else if (k==='Enter' && won) $('go').click();
 });
 initSetup();
 load(lvl);

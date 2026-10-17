@@ -10,7 +10,8 @@ On Android: menu → **Add to Home screen / Install app** — it then works offl
 
 Controls
 - **D-pad** (hold to repeat), **swipe on the board**, or arrow keys
-- **UNDO** (`z`), **RESTART** (`r`)
+- **UNDO** (`z`), **RESTART** (`r`), **F** or the FULL SCREEN button for full screen
+- On a PC the game fills the whole window, the on-screen d-pad is hidden and **arrow keys or WASD** move (Esc closes the stage list)
 - **HINT** (`h`) — replays an optimal solution from where you are, one step every ~0.17 s.
   Tap again (or make a move) to stop. A stage solved with a hint does not set a best score.
 - **Tap the "Stage N" title** for the stage list: name, number of boxes, **par** (the minimum possible moves) and
