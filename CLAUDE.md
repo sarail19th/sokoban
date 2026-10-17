@@ -78,7 +78,7 @@ per-stage best moves, installable PWA.
 - **Aoba** (`AOBA_ART` in the CHARS block): traced from a reference picture: 18x18 art cells (front `d`, side `r`, back `u`;
   left = mirror of right; rows 16-17 are the ground shadow). `bakeArt` turns it into 16 frames of 64x64 (1 cell = 3x3 px): walk =
   hop 1 cell (B also flips front/back or steps sideways), push = lean 1 cell + sweat drop, shadow stays on the ground.
-  The side and back views were drawn by hand from the front view. Styled presets (the others) are baked with `bakeLook`.
+  The back view was drawn by hand from the front view; the side view (`r`) is traced from a second reference sprite (11x15 cells + outline, one hair row dropped to fit; yellow key `e` added to the palette). Styled presets (the others) are baked with `bakeLook`.
 - **Shared code**: the tile generator (`originals()`, `LOOKS`: Treasure chest / Cherry / Stone wall / Grass floor),
   `CHAR_PRESETS` and `drawPlayer()` live in index.html between `// @@TILEGEN-BEGIN/END` and `// @@CHARS-BEGIN/END`.
   `tools/pixel-editor.html` holds copies; when they change, copy the marked blocks (and the drawPlayer function)
