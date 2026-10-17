@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Box Pusher tile editor</title>
+<style>
+:root{--bg:#1b2a38;--panel:#243a4c;--ink:#e6f3f8;--mut:#9db8c6;--acc:#5fd0f0;--line:#35516a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,sans-serif}
+header{padding:14px 20px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:18px} header p{margin:4px 0 0;color:var(--mut)}
+h2{margin:16px 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+main{display:flex;flex-wrap:wrap;gap:16px;padding:0 20px 30px;align-items:flex-start}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:2px 14px 14px}
+#left{flex:0 0 230px} #mid{flex:0 1 560px} #right{flex:1 1 300px;min-width:260px}
+button,select{background:#1f8fc4;color:#fff;border:0;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer;margin:3px 4px 0 0;font-size:13px}
+button.alt,select{background:#3a566e} button.on{outline:2px solid var(--acc);background:#2a6e94}
+select{padding:6px 8px}
+#tabs button{width:100%;margin:3px 0;text-align:left;display:flex;align-items:center;gap:8px}
+#tabs canvas{width:28px;height:28px;image-rendering:pixelated;background:#4a939c;border-radius:4px}
+#edit{width:100%;max-width:544px;aspect-ratio:1;image-rendering:pixelated;border-radius:6px;touch-action:none;cursor:crosshair;display:block}
+#swatches{display:flex;flex-wrap:wrap;gap:4px;max-height:130px;overflow:auto;margin-top:6px}
+.sw{width:24px;height:24px;border-radius:5px;border:2px solid transparent;padding:0;margin:0}
+.sw.sel{border-color:#fff}
+input[type=color]{width:44px;height:30px;border:1px solid var(--line);border-radius:6px;background:none;padding:0;vertical-align:middle}
+input[type=text]{width:84px;background:#162532;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 6px;font-family:ui-monospace,monospace}
+textarea{width:100%;background:#162532;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:11px/1.3 ui-monospace,monospace}
+#scene{width:100%;image-rendering:pixelated;border-radius:6px;display:block}
+.note{color:var(--mut);font-size:12px;margin:6px 0 0} #msg{color:var(--acc);min-height:18px;margin-top:4px}
+label.chk{color:var(--mut);display:inline-flex;gap:5px;align-items:center;margin:6px 8px 0 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>Box Pusher · tile editor</h1>
+  <p>Draw the floor, wall, box, box-on-star and star pixel by pixel (32×32 or 64×64), then copy the <code>SPRITES</code> block into <code>index.html</code> (or send it to Claude). Works offline: just open this file.</p>
+</header>
+<main>
+  <section id="left">
+    <h2>Sprite</h2><div id="tabs"></div>
+    <h2>Size</h2>
+    <select id="size"><option value="32">32 × 32 (classic)</option><option value="64">64 × 64 (more detail)</option></select>
+    <p class="note">Changing size converts all sprites (nearest neighbour). The game scales its tiles and the player to match.</p>
+    <h2>Looks</h2><div id="presets"></div>
+    <p class="note">A look replaces only the sprites it covers.</p>
+    <h2>Import PNG</h2>
+    <input type="file" id="file" accept="image/png,image/gif,image/jpeg">
+    <p class="note">Draw elsewhere (Piskel, Aseprite, …) and load a PNG into the selected sprite. Transparent pixels stay transparent.</p>
+  </section>
+  <section id="mid">
+    <h2 id="title">Box</h2>
+    <canvas id="edit"></canvas>
+    <div>
+      <button id="t_pencil" class="on">Pencil</button><button id="t_erase" class="alt">Eraser</button><button id="t_fill" class="alt">Fill</button><button id="t_pick" class="alt">Picker</button>
+      <button id="undo" class="alt">Undo</button><button id="redo" class="alt">Redo</button><button id="clear" class="alt">Clear</button>
+      <button id="fh" class="alt">Flip ↔</button><button id="fv" class="alt">Flip ↕</button>
+      <br><label class="chk"><input type="checkbox" id="mirror"> mirror left/right</label><label class="chk"><input type="checkbox" id="grid" checked> grid</label>
+    </div>
+    <h2>Colour</h2>
+    <input type="color" id="col" value="#d63a3a"> <input type="text" id="hex" value="#d63a3a" maxlength="7" spellcheck="false">
+    <div id="swatches"></div>
+    <p class="note">Swatches are the colours already in this sprite. Draw with the eraser for transparency.</p>
+  </section>
+  <section id="right">
+    <h2>Preview</h2>
+    <canvas id="scene"></canvas>
+    <h2>SPRITES block for index.html</h2>
+    <textarea id="out" rows="9" spellcheck="false"></textarea>
+    <button id="copy">Copy</button><button id="load" class="alt">Load from text</button><button id="reset" class="alt">Reset to original</button>
+    <div id="msg"></div>
+  </section>
+</main>
+<script>
+// ---------- pixel helpers + the original sprites (also used by the game to create its default SPRITES) ----------
+const KEYS = ['floorA','floorB','wall','box','boxOn','star'];
+const NAMES = {floorA:'Floor (light)', floorB:'Floor (dark)', wall:'Wall', box:'Box', boxOn:'Box on star', star:'Star'};
+const mk = n => Array.from({length:n}, () => Array(n).fill(null));
+const rect = (g,x,y,w,h,c) => { for (let j=y;j<y+h;j++) for (let i=x;i<x+w;i++) if (j>=0&&j<g.length&&i>=0&&i<g.length) g[j][i]=c; };
+const disc = (g,cx,cy,r,c) => { for (let j=0;j<g.length;j++) for (let i=0;i<g.length;i++) if ((i+.5-cx)**2+(j+.5-cy)**2<=r*r) g[j][i]=c; };
+const poly = (g,pts,c) => { for (let j=0;j<g.length;j++) for (let i=0;i<g.length;i++) { let ins=false; const x=i+.5,y=j+.5;
+  for (let a=0,b=pts.length-1;a<pts.length;b=a++){ const [xa,ya]=pts[a],[xb,yb]=pts[b]; if ((ya>y)!==(yb>y) && x<(xb-xa)*(y-ya)/(yb-ya)+xa) ins=!ins; } if (ins) g[j][i]=c; } };
+const dot = (g,x,y,c) => { if (g[y]&&x>=0&&x<g.length) g[y][x]=c; };
+function originals(){
+  const o = {};
+  const floor = (c1) => { const g=mk(32); rect(g,0,0,32,32,c1); rect(g,0,0,32,1,'#2f6f7a'); rect(g,0,0,1,32,'#2f6f7a'); return g; };
+  o.floorA = floor('#4a939c'); o.floorB = floor('#4f9aa3');
+  const w = mk(32); rect(w,0,0,32,32,'#a9694a'); rect(w,2,2,28,28,'#c4825c');
+  for (let i=4;i<=27;i++){ dot(w,i,i,'#8a4f35'); dot(w,i+1,i,'#8a4f35'); dot(w,31-i,i,'#8a4f35'); dot(w,30-i,i,'#8a4f35'); }
+  o.wall = w;
+  const star = mk(32); poly(star,[[16,7],[19,13],[25,16],[19,19],[16,25],[13,19],[7,16],[13,13]],'#ffe98a'); o.star = star;
+  const box = (c1,c2) => { const g=mk(32); rect(g,4,4,24,24,c1); rect(g,6,6,20,20,c2); rect(g,9,10,10,6,'#d9d2c3'); return g; };
+  o.box = box('#8a6246','#a98062'); o.boxOn = box('#e0b45a','#f5d584');
+  return o;
+}
+const LOOKS = {
+  'Treasure chest': () => { const mkc = on => { const g=mk(32), wood=on?'#c98a3c':'#8a5a2b', lid=on?'#e0a24e':'#a8703a', edge='#3b2410', gold='#f2c14e';
+      rect(g,3,11,26,18,edge); rect(g,4,12,24,16,wood); for (let y=17;y<28;y+=5) rect(g,4,y,24,1,'#6e4521');
+      rect(g,3,5,26,8,edge); rect(g,5,4,22,2,edge); rect(g,4,6,24,6,lid); rect(g,6,5,20,1,lid);
+      rect(g,7,5,3,24,gold); rect(g,22,5,3,24,gold); rect(g,13,12,6,8,edge); rect(g,14,13,4,6,gold); rect(g,15,15,2,3,edge);
+      if (on){ dot(g,2,3,'#fff6c0'); dot(g,29,4,'#fff6c0'); dot(g,1,20,'#fff6c0'); dot(g,30,22,'#fff6c0'); } return g; };
+    return { box: mkc(false), boxOn: mkc(true) }; },
+  'Cherry': () => { const mkc = on => { const g=mk(32);
+      if (on) disc(g,16,18,14,'#ffe98a');
+      for (let i=0;i<10;i++){ dot(g,16-Math.floor(i*0.7),5+i,'#5a3a1e'); dot(g,16+Math.floor(i*0.8),5+i,'#5a3a1e'); }
+      poly(g,[[16,5],[24,3],[27,7],[20,8]],'#3f9a3b'); disc(g,9,21,6.5,'#7a0f1c'); disc(g,22,22,6.5,'#7a0f1c'); disc(g,9,21,5.4,'#d62d3a'); disc(g,22,22,5.4,'#d62d3a');
+      rect(g,7,18,2,2,'#ff9aa5'); rect(g,20,19,2,2,'#ff9aa5'); return g; };
+    return { box: mkc(false), boxOn: mkc(true) }; },
+  'Stone wall': () => { const g=mk(32); rect(g,0,0,32,32,'#8e949c'); for (const y of [0,8,16,24]) rect(g,0,y,32,1,'#50565e');
+    [[0,4],[1,0],[0,4],[1,0]].forEach(([_,off],r)=>{ for (let x=(r%2?6:0);x<32;x+=12) rect(g,x,r*8,1,8,'#50565e'); });
+    for (let r=0;r<4;r++) for (let x=(r%2?7:1);x<32;x+=12) rect(g,x,r*8+1,10,2,'#aab0b8'); return { wall: g }; },
+  'Grass floor': () => { const mkf = c => { const g=mk(32); rect(g,0,0,32,32,c); [[5,6],[19,3],[26,17],[10,22],[3,28],[22,27]].forEach(([x,y])=>{ rect(g,x,y,1,3,'#3f7d3a'); rect(g,x+2,y+1,1,2,'#3f7d3a'); }); return g; };
+    return { floorA: mkf('#78b85a'), floorB: mkf('#6fae52') }; },
+  'Original': () => originals(),
+};
+
+// ---------- state ----------
+let n = 32, S = originals(), cur = 'box', tool = 'pencil', color = '#d63a3a', undoS = [], redoS = [];
+const $ = id => document.getElementById(id);
+const ed = $('edit'), ec = ed.getContext('2d');
+const snap = () => JSON.stringify({n, S});
+function pushUndo(){ undoS.push(snap()); if (undoS.length > 60) undoS.shift(); redoS = []; }
+function restore(s){ const o = JSON.parse(s); n = o.n; S = o.S; $('size').value = n; refresh(); }
+function scaleGrid(g, to){ const from = g.length; if (from === to) return g; const o = mk(to);
+  for (let y=0;y<to;y++) for (let x=0;x<to;x++) o[y][x] = g[Math.min(from-1, Math.floor(y*from/to))][Math.min(from-1, Math.floor(x*from/to))]; return o; }
+function toCanvas(g){ const m = g.length, c = document.createElement('canvas'); c.width = c.height = m; const x = c.getContext('2d');
+  for (let j=0;j<m;j++) for (let i=0;i<m;i++) if (g[j][i]) { x.fillStyle = g[j][i]; x.fillRect(i,j,1,1); } return c; }
+const hex = (r,g,b) => '#' + [r,g,b].map(v => Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('');
+
+// ---------- drawing ----------
+function draw(){
+  const m = n, z = Math.floor(512 / m); ed.width = ed.height = m * z;
+  for (let j=0;j<m;j++) for (let i=0;i<m;i++){ const c = S[cur][j][i];
+    ec.fillStyle = ((i>>2)+(j>>2))%2 ? '#6a7480' : '#59626d'; ec.fillRect(i*z,j*z,z,z);
+    if (c){ ec.fillStyle = c; ec.fillRect(i*z,j*z,z,z); } }
+  if ($('grid').checked){ ec.strokeStyle = 'rgba(0,0,0,.28)'; ec.lineWidth = 1; ec.beginPath();
+    for (let k=0;k<=m;k++){ ec.moveTo(k*z+.5,0); ec.lineTo(k*z+.5,m*z); ec.moveTo(0,k*z+.5); ec.lineTo(m*z,k*z+.5); } ec.stroke(); }
+}
+function tabs(){
+  $('tabs').textContent = '';
+  for (const k of KEYS){ const b = document.createElement('button'); b.className = k===cur ? 'on' : 'alt'; const c = toCanvas(S[k]); b.appendChild(c); b.append(NAMES[k]);
+    b.onclick = () => { cur = k; refresh(); }; $('tabs').appendChild(b); }
+  $('title').textContent = NAMES[cur] + '  (' + n + '×' + n + ')';
+}
+function palette(){
+  const cnt = {}; for (const r of S[cur]) for (const c of r) if (c) cnt[c] = (cnt[c]||0) + 1;
+  $('swatches').textContent = '';
+  Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([c]) => { const b = document.createElement('button'); b.className = 'sw'+(c===color?' sel':''); b.style.background = c; b.title = c;
+    b.onclick = () => setColor(c); $('swatches').appendChild(b); });
+}
+function scene(){
+  const sc = $('scene'), m = n, cols = 8, rows = 4; sc.width = cols*m; sc.height = rows*m; const c = sc.getContext('2d'); c.imageSmoothingEnabled = false;
+  const sp = {}; for (const k of KEYS) sp[k] = toCanvas(S[k]);
+  const at = (k,x,y) => c.drawImage(sp[k], x*m, y*m);
+  const map = ['########','#  *$  #','# $ . $ #','########'];
+  for (let y=0;y<rows;y++) for (let x=0;x<cols;x++){ const ch = map[y][x]; if (ch === '#') at('wall',x,y); else { at((x+y)%2 ? 'floorB' : 'floorA',x,y); if (ch==='.') at('star',x,y); } }
+  at('star',4,1); at('box',2,2); at('box',6,2); at('boxOn',4,2); at('box',3,1);
+}
+function out(){
+  // palette per sprite (<= 62 colours; reduce if needed), rows use 0-9a-zA-Z, '.' = transparent
+  const CH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', parts = [];
+  for (const k of KEYS){ const g = limit(S[k]), pal = []; const rows = g.map(r => r.map(c => { if (!c) return '.'; let i = pal.indexOf(c); if (i < 0) i = pal.push(c) - 1; return CH[i]; }).join(''));
+    parts.push(JSON.stringify(k) + ':' + JSON.stringify({p: pal, r: rows})); }
+  return 'const SPRITES = {"n":' + n + ',\n' + parts.join(',\n') + '};';
+}
+function limit(g){ const uniq = () => { const s = new Set(); g.forEach(r => r.forEach(c => c && s.add(c))); return s; };
+  if (uniq().size <= 62) return g;
+  for (const step of [8,16,24,32,48,64]){ const q = g.map(r => r.map(c => { if (!c) return c; const v = parseInt(c.slice(1),16); return hex(Math.round((v>>16&255)/step)*step, Math.round((v>>8&255)/step)*step, Math.round((v&255)/step)*step); }));
+    const s = new Set(); q.forEach(r => r.forEach(c => c && s.add(c))); if (s.size <= 62) return q; }
+  return g; }
+function refresh(){ tabs(); draw(); palette(); scene(); $('out').value = out(); try { localStorage.setItem('bp_tiles', snap()); } catch(e){} }
+function setColor(c){ color = c; $('col').value = c; $('hex').value = c; palette(); }
+
+// ---------- tools ----------
+function put(x, y, c){ if (x<0||y<0||x>=n||y>=n) return; S[cur][y][x] = c; if ($('mirror').checked) S[cur][y][n-1-x] = c; }
+function line(x0,y0,x1,y1,c){ const dx=Math.abs(x1-x0), dy=Math.abs(y1-y0), sx=x0<x1?1:-1, sy=y0<y1?1:-1; let e=dx-dy;
+  for(;;){ put(x0,y0,c); if (x0===x1&&y0===y1) break; const e2=2*e; if (e2>-dy){ e-=dy; x0+=sx; } if (e2<dx){ e+=dx; y0+=sy; } } }
+function fill(x,y,c){ const g = S[cur], from = g[y][x]; if (from === c) return; const q = [[x,y]];
+  while (q.length){ const [i,j] = q.pop(); if (i<0||j<0||i>=n||j>=n||g[j][i] !== from) continue; g[j][i] = c; q.push([i+1,j],[i-1,j],[i,j+1],[i,j-1]); } }
+const where = e => { const r = ed.getBoundingClientRect(); return [Math.floor((e.clientX-r.left)/r.width*n), Math.floor((e.clientY-r.top)/r.height*n)]; };
+let last = null, down = false;
+ed.addEventListener('pointerdown', e => { const [x,y] = where(e); if (x<0||y<0||x>=n||y>=n) return;
+  if (tool === 'pick'){ const c = S[cur][y][x]; if (c) setColor(c); return; }
+  pushUndo(); down = true; last = [x,y]; ed.setPointerCapture(e.pointerId);
+  if (tool === 'fill'){ fill(x,y,color); if ($('mirror').checked) fill(n-1-x,y,color); down = false; refresh(); return; }
+  put(x,y, tool === 'erase' ? null : color); draw(); });
+ed.addEventListener('pointermove', e => { if (!down) return; const [x,y] = where(e); line(last[0],last[1],x,y, tool === 'erase' ? null : color); last = [x,y]; draw(); });
+['pointerup','pointercancel'].forEach(t => ed.addEventListener(t, () => { if (down){ down = false; refresh(); } }));
+for (const t of ['pencil','erase','fill','pick']) $('t_'+t).onclick = () => { tool = t; ['pencil','erase','fill','pick'].forEach(k => $('t_'+k).className = k===t ? 'on' : 'alt'); };
+$('undo').onclick = () => { if (undoS.length){ redoS.push(snap()); restore(undoS.pop()); } };
+$('redo').onclick = () => { if (redoS.length){ undoS.push(snap()); restore(redoS.pop()); } };
+$('clear').onclick = () => { pushUndo(); S[cur] = mk(n); refresh(); };
+$('fh').onclick = () => { pushUndo(); S[cur] = S[cur].map(r => r.slice().reverse()); refresh(); };
+$('fv').onclick = () => { pushUndo(); S[cur] = S[cur].slice().reverse(); refresh(); };
+$('grid').onchange = draw;
+$('col').oninput = () => setColor($('col').value);
+$('hex').onchange = () => { if (/^#[0-9a-f]{6}$/i.test($('hex').value.trim())) setColor($('hex').value.trim().toLowerCase()); else $('hex').value = color; };
+$('size').onchange = () => { pushUndo(); const to = +$('size').value; for (const k of KEYS) S[k] = scaleGrid(S[k], to); n = to; refresh(); };
+window.addEventListener('keydown', e => { if ((e.ctrlKey||e.metaKey) && e.key === 'z'){ e.preventDefault(); $('undo').click(); } });
+
+// looks
+for (const name of Object.keys(LOOKS)){ const b = document.createElement('button'); b.className = 'alt'; b.textContent = name;
+  b.onclick = () => { pushUndo(); const part = LOOKS[name](); for (const k of Object.keys(part)) S[k] = scaleGrid(part[k], n); refresh(); say(name + ' applied'); }; $('presets').appendChild(b); }
+
+// import
+$('file').onchange = e => { const f = e.target.files[0]; if (!f) return; const img = new Image();
+  img.onload = () => { const c = document.createElement('canvas'); c.width = c.height = n; const x = c.getContext('2d'); x.imageSmoothingEnabled = img.width > n*2; x.drawImage(img, 0, 0, n, n);
+    const d = x.getImageData(0,0,n,n).data, g = mk(n); for (let j=0;j<n;j++) for (let i=0;i<n;i++){ const k=(j*n+i)*4; if (d[k+3] >= 128) g[j][i] = hex(d[k],d[k+1],d[k+2]); }
+    pushUndo(); S[cur] = limit(g); refresh(); say('Imported into ' + NAMES[cur]); URL.revokeObjectURL(img.src); };
+  img.src = URL.createObjectURL(f); e.target.value = ''; };
+
+// text in/out
+function say(t){ $('msg').textContent = t; setTimeout(() => { if ($('msg').textContent === t) $('msg').textContent = ''; }, 2500); }
+$('copy').onclick = async () => { try { await navigator.clipboard.writeText($('out').value); say('Copied. Paste over the const SPRITES block in index.html.'); } catch(e){ $('out').select(); say('Select + Ctrl+C to copy.'); } };
+function parse(text){
+  const o = JSON.parse(text.trim().replace(/^const\s+SPRITES\s*=\s*/, '').replace(/;\s*$/, ''));
+  const CH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', m = o.n, res = {};
+  if (m !== 32 && m !== 64) throw new Error('size must be 32 or 64');
+  for (const k of KEYS){ const s = o[k]; if (!s || s.r.length !== m) throw new Error('bad sprite ' + k);
+    res[k] = s.r.map(row => { if (row.length !== m) throw new Error('bad row in ' + k); return [...row].map(ch => ch === '.' ? null : s.p[CH.indexOf(ch)]); }); }
+  return { n: m, S: res };
+}
+$('load').onclick = () => { try { const o = parse($('out').value); pushUndo(); n = o.n; S = o.S; $('size').value = n; refresh(); say('Loaded.'); } catch(e){ say('Could not read that text: ' + e.message); } };
+$('reset').onclick = () => { pushUndo(); n = 32; S = originals(); $('size').value = 32; refresh(); say('Reset to the original look.'); };
+
+try { const s = localStorage.getItem('bp_tiles'); if (s){ const o = JSON.parse(s); if (o && (o.n === 32 || o.n === 64) && KEYS.every(k => o.S[k])){ n = o.n; S = o.S; $('size').value = n; } } } catch(e){}
+refresh();
+</script>
+</body>
+</html>

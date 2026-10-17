@@ -82,6 +82,20 @@ if (!bad) {
     bad++;
   } else console.log('SOLUTIONS block is up to date.');
 }
+// the tile art block must be well formed (size, rows, palette indexes)
+try {
+  const SP = eval('(' + src.match(/const SPRITES = (\{[\s\S]*?\});\n/)[1] + ')'), CH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  if (SP.n !== 32 && SP.n !== 64) throw new Error('n must be 32 or 64');
+  for (const k of ['floorA', 'floorB', 'wall', 'box', 'boxOn', 'star']) {
+    const s = SP[k]; if (!s || s.r.length !== SP.n) throw new Error(k + ': wrong number of rows');
+    for (const row of s.r) {
+      if (row.length !== SP.n) throw new Error(k + ': wrong row length');
+      for (const ch of row) if (ch !== '.' && !(CH.indexOf(ch) >= 0 && CH.indexOf(ch) < s.p.length)) throw new Error(k + ': bad palette index ' + ch);
+    }
+    if (!s.p.every(c => /^#[0-9a-f]{6}$/i.test(c))) throw new Error(k + ': bad palette colour');
+  }
+  console.log('SPRITES block is valid (' + SP.n + 'x' + SP.n + ').');
+} catch (e) { console.log('SPRITES block problem: ' + e.message); bad++; }
 // tools/sprite-editor.html carries a copy of drawPlayer(); fail if it drifted from the game's
 try {
   const fnRe = /function drawPlayer\(X,Y\)\{[\s\S]*?\n\}\n/;

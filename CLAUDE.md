@@ -11,6 +11,7 @@ per-stage best moves, installable PWA.
   independent engine, writes/checks `SOLUTIONS`; `tools/par-cache.json` caches proven answers (keyed by layout)
 - `tools/make-icons.js` — renders the PNG icons (no dependencies)
 - `tools/sprite-editor.html` — standalone editor for the player's look (see Features)
+- `tools/tile-editor.html` — standalone pixel editor for the floor / wall / box / box-on-star / star art (see Features)
 
 ## Rules for changes
 - The game stays ONE self-contained `index.html` (no build step, no external assets, no libraries).
@@ -59,6 +60,13 @@ per-stage best moves, installable PWA.
   Adding a style option = add a branch in `drawPlayer()` + the value in the editor's `OPTIONS` (and default/preset
   colours if it needs a new `PAL` key + `DEFAULT`/`LABELS` there). The game currently uses the "Sakura" look
   (the editor's Reset still goes back to the original blue character).
+- **Tile art / tile editor**: tiles are drawn from `const SPRITES` in index.html (6 sprites: floorA, floorB, wall, box,
+  boxOn, star; square, `n` = 32 or 64 px; rows use `.` = transparent and 0-9a-zA-Z = palette index into `p`).
+  `T = SPRITES.n` is the canvas tile size, and the player (always drawn on a 32 px grid) is scaled by `T/32`.
+  `tools/tile-editor.html` edits them: pencil / eraser / fill / picker, mirror, flips, undo/redo, 32<->64 conversion,
+  PNG import (so art can be drawn in Piskel etc.), looks (Treasure chest, Cherry, Stone wall, Grass floor, Original).
+  "Copy" gives the whole `const SPRITES = {...};` block to paste over the one in index.html. The editor holds its own
+  copy of the original art (`originals()`); `node tools/solve.js` validates the SPRITES block (size, rows, palette).
 - **PWA**: `sw.js` precaches the files, stale-while-revalidate; registered only on http(s).
 
 ## Verify after every change

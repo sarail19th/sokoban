@@ -28,6 +28,9 @@ Saved in `localStorage`: `bp_lvl` (current stage), `bp_best2` (best moves per st
   game engine, and keeps the `SOLUTIONS` block in `index.html` (used by HINT and the par display) up to date.
   `tools/par-cache.json` caches the proven answers so normal runs take about a second.
 - `tools/make-icons.js` — regenerates the PNG icons (no dependencies).
+- `tools/tile-editor.html` — open in a browser to redraw the floor, wall, box, box-on-star and star pixel by pixel
+  (32×32 or 64×64, PNG import, looks such as treasure chest / cherry / stone wall / grass); copy the generated
+  `SPRITES` block into `index.html`.
 - `tools/sprite-editor.html` — open in a browser to restyle the player (hair, hat, outfit, extras, colours, presets,
   live preview of every pose); copy the generated `PAL` and `LOOK` lines into `index.html`.
 
