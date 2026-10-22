@@ -35,19 +35,19 @@ canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100
 #hint:disabled{opacity:.6}
 #title{cursor:pointer}
 #pick{position:fixed;inset:0;background:rgba(10,30,40,.75);display:none;align-items:center;justify-content:center;padding:16px}
-#pickBox{background:var(--panel);border:4px solid #fff7b0;border-radius:16px;color:var(--ink);width:100%;max-width:420px;max-height:100%;display:flex;flex-direction:column}
+#pickBox{background:var(--panel);border:4px solid #fff7b0;border-radius:16px;color:var(--ink);width:100%;max-width:460px;max-height:100%;display:flex;flex-direction:column}
 #pickBox h2{margin:0;padding:14px 16px 6px;font-size:18px}
-#pickHead,.pr{display:grid;grid-template-columns:2.2em 1fr 3em 3em 3em 4.4em;gap:4px;padding:6px 16px;align-items:center;font-size:14px}
-#pickHead{font-size:12px;opacity:.7;font-weight:700}
-#list{overflow:auto;flex:1;min-height:0}
-.pr{width:100%;border:0;background:none;color:inherit;font:inherit;text-align:left;border-top:1px solid var(--panel2);height:40px}
-.pr:active{background:var(--panel2)}
-.pr.cur{background:#fff7b0}
-#pickHead span:nth-child(n+3),.pr span:nth-child(n+3){text-align:center}
-.pr .st{color:#e0a21b;letter-spacing:1px;font-size:13px}
+#list{overflow:auto;flex:1;min-height:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;padding:2px 12px 4px;align-content:start}
+.sc{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px 6px;border:3px solid transparent;border-radius:12px;background:var(--panel2);color:inherit;font:inherit;text-align:center}
+.sc:active{transform:translateY(2px);filter:brightness(.95)}
+.sc.cur{border-color:#e0a21b;background:#fff7b0}
+.sc .mp{width:100%;height:84px;object-fit:contain;image-rendering:auto;border:0;border-radius:6px;background:none;max-width:none;max-height:none}
+.sc .n{position:absolute;left:6px;top:4px;font-weight:800;font-size:12px;background:var(--btn2);color:#fff;border-radius:8px;padding:0 6px;line-height:18px}
+.sc .nm{font-weight:800;font-size:13px;line-height:1.2}
+.sc .mt{font-size:11px;font-weight:600;opacity:.8;line-height:1.3}
+.sc .ok{color:#1c8a3a;font-weight:800;opacity:1}
+.sc .st{color:#e0a21b;letter-spacing:1px;font-size:13px;line-height:1.2}
 #pickSum{padding:0 16px 8px;font-size:13px;font-weight:600;opacity:.85}
-.pr b{font-weight:800}
-.pr .ok{color:#1c8a3a;font-weight:800}
 #pickSetup{margin:10px 8px 14px 16px;background:#3a566e;color:#fff;border:0;border-radius:10px;padding:10px;font-size:15px;font-weight:700}
 #pickBox{position:relative}
 #pickClose{margin:10px 16px 14px 8px;background:var(--btn2);color:#fff;border:0;border-radius:10px;padding:10px;font-size:15px;font-weight:700}
@@ -128,7 +128,7 @@ canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100
   </details>
   <button id="setupGo">Play</button>
 </div></div>
-<div id="pick"><div id="pickBox"><h2>Stages</h2><div id="pickSum"></div><div id="pickHead"><span>#</span><span>Shape</span><span>Boxes</span><span>Par</span><span>Best</span><span>Stars</span></div><div id="list"></div><button id="pickSetup">Character &amp; tiles</button><button id="pickClose">Close</button></div></div>
+<div id="pick"><div id="pickBox"><h2>Stages</h2><div id="pickSum"></div><div id="list"></div><button id="pickSetup">Character &amp; tiles</button><button id="pickClose">Close</button></div></div>
 <div id="msg"><div><h2>Stage clear!</h2><div id="ws"></div><p id="mm"></p><button id="go">Next stage</button> <button id="winMenu">All stages</button></div></div>
 
 <script>
@@ -1125,15 +1125,35 @@ document.querySelectorAll('.d').forEach(b=>{
   });
   ['pointerup','pointercancel'].forEach(ev=>cv.addEventListener(ev,e=>{ if (e.pointerId===id) id=null; }));
 })();
+// small map of a stage (start layout) drawn with the current tile set
+function miniMap(n){
+  const g = parse(n), c = Math.floor(110/Math.max(g.W,g.H)), m = document.createElement('canvas');
+  m.width = g.W*c; m.height = g.H*c; m.className = 'mp';
+  const x = m.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+  for (let y=0;y<g.H;y++) for (let i=0;i<g.W;i++){
+    if (g.walls[y][i]===2) continue;
+    x.drawImage(SPR[g.walls[y][i]===1 ? 'wall' : (i+y)%2 ? 'floorB' : 'floorA'], i*c, y*c, c, c);
+    if (g.targets.has(i+','+y)) x.drawImage(SPR.star, i*c, y*c, c, c);
+  }
+  for (const k of g.boxes){ const [i,y] = k.split(',').map(Number); x.drawImage(g.targets.has(k) ? SPR.boxOn : SPR.box, i*c, y*c, c, c); }
+  x.fillStyle = PAL.shirt; x.beginPath(); x.arc((g.player.x+.5)*c, (g.player.y+.62)*c, c*.3, 0, 7); x.fill();
+  x.fillStyle = PAL.skin; x.beginPath(); x.arc((g.player.x+.5)*c, (g.player.y+.32)*c, c*.24, 0, 7); x.fill();
+  return m;
+}
 function openPick(){
   const l = $('list'); l.textContent = '';
   let cleared = 0, total = 0;
   for (let i=0;i<LEVELS.length;i++){
     const b = bestOf(i), par = parOf(i), r = document.createElement('button');
-    r.className = 'pr'+(i===lvl?' cur':'');
+    r.className = 'sc'+(i===lvl?' cur':'');
     const sc = starsOf(i); total += sc; if (sc) cleared++;
-    const cells = [i+1, STAGE_NAMES[i]||'', boxCount(i), par||'–', b===undefined ? '–' : b, sc ? starText(sc) : '–'];
-    cells.forEach((v,k)=>{ const e = document.createElement(k===0?'b':'span'); e.textContent = v; if (k===4 && b!==undefined && par && b<=par) e.className='ok'; if (k===5) e.className='st'; r.appendChild(e); });
+    const add = (cls, txt)=>{ const e = document.createElement('div'); e.className = cls; e.textContent = txt; r.appendChild(e); return e; };
+    r.appendChild(miniMap(i));
+    add('n', i+1);
+    add('nm', STAGE_NAMES[i]||'');
+    const bc = boxCount(i); add('mt', bc+(bc===1?' box':' boxes')+' · Par '+(par||'–'));
+    const bt = add('mt', 'Best '+(b===undefined ? '–' : b)); if (b!==undefined && par && b<=par) bt.classList.add('ok');
+    add('st', sc ? starText(sc) : '☆☆☆');
     r.onclick = ()=>{ $('pick').style.display='none'; load(i); };
     l.appendChild(r);
   }

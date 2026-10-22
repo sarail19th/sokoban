@@ -34,8 +34,8 @@ per-stage best moves, installable PWA.
 - Watch out for `$$`/`$'` in JS `String.replace` replacement strings when scripting edits (it silently ate a `$` in a stage).
 
 ## Features (how they work)
-- **Par / stage list**: header shows "N boxes · Par P · Best B". Tapping the "Stage N" title opens a list of all stages
-  (name, boxes, par, best; best turns green when it equals par). Par = proven minimum number of moves.
+- **Par / stage list**: header shows "N boxes · Par P · Best B". The ☰ button (or the "Stage N" title, or M) opens the stage list: a grid of small map cards
+  (mini start layout drawn with the current tile set, number, name, boxes, par, best, stars; best turns green when it equals par). Par = proven minimum number of moves.
 - **Solver** (`solveBFS` in index.html, shared by HINT and `tools/solve.js`): A* over push-states (boxes + player position
   after a push; walking between pushes is one BFS flood). Heuristic = cheapest assignment of boxes to stars by push
   distance (never overestimates, so results stay optimal). Dead squares are pruned only when boxes == stars.
