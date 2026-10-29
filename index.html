@@ -21,7 +21,7 @@ html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;touch-action
 #sub{font-size:12px;font-weight:600;opacity:.75}
 #boardWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:6px 10px}
 canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100%;border:4px solid #fff7b0;border-radius:6px;background:#2f6f7a}
-#ctrl{display:flex;align-items:center;justify-content:space-around;padding:10px 8px 22px}
+#ctrl{display:flex;align-items:center;justify-content:space-around;padding:10px 8px 6px}
 #dpad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,64px);gap:2px}
 .d{background:linear-gradient(#7fe0f7,var(--btn));border:3px solid #0a2b3a;border-bottom-width:7px;border-bottom-color:var(--btn2);border-radius:14px;display:flex;align-items:center;justify-content:center}
 .d:active,.a:active{transform:translateY(3px);filter:brightness(.9)}
@@ -51,7 +51,7 @@ canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100
 #pickSetup{margin:10px 8px 14px 16px;background:#3a566e;color:#fff;border:0;border-radius:10px;padding:10px;font-size:15px;font-weight:700}
 #pickBox{position:relative}
 #pickClose{margin:10px 16px 14px 8px;background:var(--btn2);color:#fff;border:0;border-radius:10px;padding:10px;font-size:15px;font-weight:700}
-#pickSrc{display:block;text-align:center;font-size:12px;font-weight:600;opacity:.75;color:inherit;padding:0 16px 12px;text-decoration:underline}
+#srcLink{flex:none;align-self:center;font-size:12px;font-weight:600;color:var(--ink);opacity:.7;text-decoration:underline;padding:0 12px 12px}
 #setup{position:fixed;inset:0;background:var(--bg);display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:16px}
 #setupBox{background:var(--panel);border:4px solid #fff7b0;border-radius:16px;color:var(--ink);width:100%;max-width:440px;padding:8px 16px 18px}
 #setupBox h1{margin:8px 0 0;text-align:center} #setupBox h3{margin:14px 0 6px;font-size:14px}
@@ -74,7 +74,8 @@ canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100
   .a{width:140px;height:50px;font-size:16px}
   #fs{display:block;background:#3a566e;border-bottom-width:7px;font-size:13px;white-space:nowrap}
   #keys{display:block;position:fixed;left:0;right:0;bottom:6px;text-align:center;font-size:12px;font-weight:600;color:var(--ink);opacity:.6;pointer-events:none}
-  #ctrl{padding-bottom:26px}
+  #ctrl{padding-bottom:6px}
+  #srcLink{padding-bottom:28px}
   #top{padding:10px 24px}
   #top button{width:48px;height:40px}
 }
@@ -115,6 +116,7 @@ canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100
       <button class="a" id="fs" title="Full screen (F)">FULL SCREEN</button>
     </div>
   </div>
+  <a id="srcLink" href="https://github.com/sarail19th/sokoban" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
 </div>
 <div id="keys">Arrow keys / WASD move · Z undo · R restart · H hint · F full screen · M all stages</div>
 <div id="toast"></div>
@@ -129,7 +131,7 @@ canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100
   </details>
   <button id="setupGo">Play</button>
 </div></div>
-<div id="pick"><div id="pickBox"><h2>Stages</h2><div id="pickSum"></div><div id="list"></div><button id="pickSetup">Character &amp; tiles</button><button id="pickClose">Close</button><a id="pickSrc" href="https://github.com/sarail19th/sokoban" target="_blank" rel="noopener noreferrer">Source on GitHub</a></div></div>
+<div id="pick"><div id="pickBox"><h2>Stages</h2><div id="pickSum"></div><div id="list"></div><button id="pickSetup">Character &amp; tiles</button><button id="pickClose">Close</button></div></div>
 <div id="msg"><div><h2>Stage clear!</h2><div id="ws"></div><p id="mm"></p><button id="go">Next stage</button> <button id="winMenu">All stages</button></div></div>
 
 <script>
