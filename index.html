@@ -51,6 +51,7 @@ canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100
 #pickSetup{margin:10px 8px 14px 16px;background:#3a566e;color:#fff;border:0;border-radius:10px;padding:10px;font-size:15px;font-weight:700}
 #pickBox{position:relative}
 #pickClose{margin:10px 16px 14px 8px;background:var(--btn2);color:#fff;border:0;border-radius:10px;padding:10px;font-size:15px;font-weight:700}
+#pickSrc{display:block;text-align:center;font-size:12px;font-weight:600;opacity:.75;color:inherit;padding:0 16px 12px;text-decoration:underline}
 #setup{position:fixed;inset:0;background:var(--bg);display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:16px}
 #setupBox{background:var(--panel);border:4px solid #fff7b0;border-radius:16px;color:var(--ink);width:100%;max-width:440px;padding:8px 16px 18px}
 #setupBox h1{margin:8px 0 0;text-align:center} #setupBox h3{margin:14px 0 6px;font-size:14px}
@@ -128,7 +129,7 @@ canvas{touch-action:none;image-rendering:pixelated;max-width:100%;max-height:100
   </details>
   <button id="setupGo">Play</button>
 </div></div>
-<div id="pick"><div id="pickBox"><h2>Stages</h2><div id="pickSum"></div><div id="list"></div><button id="pickSetup">Character &amp; tiles</button><button id="pickClose">Close</button></div></div>
+<div id="pick"><div id="pickBox"><h2>Stages</h2><div id="pickSum"></div><div id="list"></div><button id="pickSetup">Character &amp; tiles</button><button id="pickClose">Close</button><a id="pickSrc" href="https://github.com/sarail19th/sokoban" target="_blank" rel="noopener noreferrer">Source on GitHub</a></div></div>
 <div id="msg"><div><h2>Stage clear!</h2><div id="ws"></div><p id="mm"></p><button id="go">Next stage</button> <button id="winMenu">All stages</button></div></div>
 
 <script>
